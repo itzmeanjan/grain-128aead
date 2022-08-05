@@ -8,7 +8,7 @@ namespace grain_128 {
 
 // Grain-128 AEAD state, which has two main parts
 //
-// i)  Preoutput Generator
+// i)  Pre-output Generator
 //      a) 128 -bit LFSR
 //      b) 128 -bit NFSR
 // ii) Authentication Generator
@@ -48,12 +48,10 @@ select_bit(
   const std::pair<size_t, size_t> idx  // byte and bit offset, in order
 )
 {
-  constexpr uint8_t one = 0b1;
-
   const uint8_t byte = arr[idx.first];
-  const uint8_t bit = (byte >> idx.second) & one;
+  const uint8_t bit = byte >> idx.second;
 
-  return bit;
+  return bit & 0b1;
 }
 
 // Boolean function `h(x)`, which takes 9 state variable bits & produces single
@@ -89,6 +87,36 @@ h(const state_t* const st)
 
   const uint8_t hx = x0x1 ^ x2x3 ^ x4x5 ^ x6x7 ^ x0x4x8;
   return hx;
+}
+
+// Pre-output generator function, producing single output (key stream) bit,
+// using formula
+//
+// yt = h(x) + st93 + ∑ j∈A (btj)
+//
+// A = {2, 15, 36, 45, 64, 73, 89}
+//
+// See definition in page 7 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+inline static void
+ksb(const state_t* const st)
+{
+  const uint8_t hx = h(st);
+
+  const uint8_t s93 = select_bit(st->lfsr, compute_index(93));
+
+  const uint8_t b2 = select_bit(st->nfsr, compute_index(2));
+  const uint8_t b15 = select_bit(st->nfsr, compute_index(15));
+  const uint8_t b36 = select_bit(st->nfsr, compute_index(36));
+  const uint8_t b45 = select_bit(st->nfsr, compute_index(45));
+  const uint8_t b64 = select_bit(st->nfsr, compute_index(64));
+  const uint8_t b73 = select_bit(st->nfsr, compute_index(73));
+  const uint8_t b89 = select_bit(st->nfsr, compute_index(89));
+
+  const uint8_t bt = b2 ^ b15 ^ b36 ^ b45 ^ b64 ^ b73 ^ b89;
+
+  const uint8_t yt = hx ^ s93 ^ bt;
+  return yt;
 }
 
 }
