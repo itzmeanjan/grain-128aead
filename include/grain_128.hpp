@@ -138,4 +138,71 @@ l(const state_t* const st)
   return s127;
 }
 
+// s0 + F(Bt) --- update function of NFSR, computing 127 -th bit of NFSR, for
+// next round
+//
+// See definition in page 7 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+inline static uint8_t
+f(const state_t* const st)
+{
+  const uint8_t s0 = select_bit(st->lfsr, compute_index(0));
+
+  const uint8_t b0 = select_bit(st->nfsr, compute_index(0));
+  const uint8_t b26 = select_bit(st->nfsr, compute_index(26));
+  const uint8_t b56 = select_bit(st->nfsr, compute_index(56));
+  const uint8_t b91 = select_bit(st->nfsr, compute_index(91));
+  const uint8_t b96 = select_bit(st->nfsr, compute_index(96));
+
+  const uint8_t b3 = select_bit(st->nfsr, compute_index(3));
+  const uint8_t b67 = select_bit(st->nfsr, compute_index(67));
+
+  const uint8_t b11 = select_bit(st->nfsr, compute_index(11));
+  const uint8_t b13 = select_bit(st->nfsr, compute_index(13));
+
+  const uint8_t b17 = select_bit(st->nfsr, compute_index(17));
+  const uint8_t b18 = select_bit(st->nfsr, compute_index(18));
+
+  const uint8_t b27 = select_bit(st->nfsr, compute_index(27));
+  const uint8_t b59 = select_bit(st->nfsr, compute_index(59));
+
+  const uint8_t b40 = select_bit(st->nfsr, compute_index(40));
+  const uint8_t b48 = select_bit(st->nfsr, compute_index(48));
+
+  const uint8_t b61 = select_bit(st->nfsr, compute_index(61));
+  const uint8_t b65 = select_bit(st->nfsr, compute_index(65));
+
+  const uint8_t b68 = select_bit(st->nfsr, compute_index(68));
+  const uint8_t b84 = select_bit(st->nfsr, compute_index(84));
+
+  const uint8_t b22 = select_bit(st->nfsr, compute_index(22));
+  const uint8_t b24 = select_bit(st->nfsr, compute_index(24));
+  const uint8_t b25 = select_bit(st->nfsr, compute_index(25));
+
+  const uint8_t b70 = select_bit(st->nfsr, compute_index(70));
+  const uint8_t b78 = select_bit(st->nfsr, compute_index(78));
+  const uint8_t b82 = select_bit(st->nfsr, compute_index(82));
+
+  const uint8_t b88 = select_bit(st->nfsr, compute_index(88));
+  const uint8_t b92 = select_bit(st->nfsr, compute_index(92));
+  const uint8_t b93 = select_bit(st->nfsr, compute_index(93));
+  const uint8_t b95 = select_bit(st->nfsr, compute_index(95));
+
+  const uint8_t t0 = b0 ^ b26 ^ b56 ^ b91 ^ b96;
+  const uint8_t t1 = b3 & b67;
+  const uint8_t t2 = b11 & b13;
+  const uint8_t t3 = b17 & b18;
+  const uint8_t t4 = b27 & b59;
+  const uint8_t t5 = b40 & b48;
+  const uint8_t t6 = b61 & b65;
+  const uint8_t t7 = b68 & b84;
+  const uint8_t t8 = b22 & b24 & b25;
+  const uint8_t t9 = b70 & b78 & b82;
+  const uint8_t t10 = b88 & b92 & b93 & b95;
+
+  const uint8_t fbt = t0 ^ t1 ^ t2 ^ t3 ^ t4 ^ t5 ^ t6 ^ t7 ^ t8 ^ t9 ^ t10;
+  const uint8_t b127 = s0 ^ fbt;
+  return b127;
+}
+
 }
