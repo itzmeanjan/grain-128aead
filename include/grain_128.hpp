@@ -43,9 +43,8 @@ compute_index(
 // in least significant position of a 8 -bit unsigned integer, which is returned
 // back from this function.
 inline static constexpr uint8_t
-select_bit(
-  const uint8_t* const __restrict arr, // byte array to extract the bit from
-  const std::pair<size_t, size_t> idx  // byte and bit offset, in order
+select_bit(const uint8_t* const arr, // byte array to extract the bit from
+           const std::pair<size_t, size_t> idx // byte and bit offset, in order
 )
 {
   const uint8_t byte = arr[idx.first];
@@ -203,6 +202,69 @@ f(const state_t* const st)
   const uint8_t fbt = t0 ^ t1 ^ t2 ^ t3 ^ t4 ^ t5 ^ t6 ^ t7 ^ t8 ^ t9 ^ t10;
   const uint8_t b127 = s0 ^ fbt;
   return b127;
+}
+
+// Updates 128 -bit register by dropping bit 0 & setting new bit 127 ( which is
+// provided )
+//
+// This generic function can be used for updating both 128 -bit LFSR and NFSR
+inline static void
+update(uint8_t* const reg,  // 128 -bit register to be updated
+       const uint8_t bit127 // set bit 127 to this value
+)
+{
+  const uint8_t s119 = select_bit(reg, compute_index(120));
+  const uint8_t s111 = select_bit(reg, compute_index(112));
+  const uint8_t s103 = select_bit(reg, compute_index(104));
+  const uint8_t s95 = select_bit(reg, compute_index(96));
+  const uint8_t s87 = select_bit(reg, compute_index(88));
+  const uint8_t s79 = select_bit(reg, compute_index(80));
+  const uint8_t s71 = select_bit(reg, compute_index(72));
+  const uint8_t s63 = select_bit(reg, compute_index(64));
+  const uint8_t s55 = select_bit(reg, compute_index(56));
+  const uint8_t s47 = select_bit(reg, compute_index(48));
+  const uint8_t s39 = select_bit(reg, compute_index(40));
+  const uint8_t s31 = select_bit(reg, compute_index(32));
+  const uint8_t s23 = select_bit(reg, compute_index(24));
+  const uint8_t s15 = select_bit(reg, compute_index(16));
+  const uint8_t s7 = select_bit(reg, compute_index(8));
+
+  reg[15] = (bit127 << 7) | (reg[15] >> 1);
+  reg[14] = (s119 << 7) | (reg[14] >> 1);
+  reg[13] = (s111 << 7) | (reg[13] >> 1);
+  reg[12] = (s103 << 7) | (reg[12] >> 1);
+  reg[11] = (s95 << 7) | (reg[11] >> 1);
+  reg[10] = (s87 << 7) | (reg[10] >> 1);
+  reg[9] = (s79 << 7) | (reg[9] >> 1);
+  reg[8] = (s71 << 7) | (reg[8] >> 1);
+  reg[7] = (s63 << 7) | (reg[7] >> 1);
+  reg[6] = (s55 << 7) | (reg[6] >> 1);
+  reg[5] = (s47 << 7) | (reg[5] >> 1);
+  reg[4] = (s39 << 7) | (reg[4] >> 1);
+  reg[3] = (s31 << 7) | (reg[3] >> 1);
+  reg[2] = (s23 << 7) | (reg[2] >> 1);
+  reg[1] = (s15 << 7) | (reg[1] >> 1);
+  reg[0] = (s7 << 7) | (reg[0] >> 1);
+}
+
+// Updates LFSR, by shifting 128 -bit register by 1 -bit leftwards ( when least
+// significant bit lives on left side of the bit array i.e. bit 0 is dropped &
+// new bit 127 is placed ), while placing `s127` as 127 -th bit of LFSR for next
+// round
+inline static void
+update_lfsr(state_t* const st, const uint8_t s127)
+{
+  update(st->lfsr, s127);
+}
+
+// Updates NFSR, by shifting 128 -bit register by 1 -bit leftwards ( when least
+// significant bit lives on left side of the bit array i.e. bit 0 is dropped &
+// new bit 127 is placed ), while placing `b127` as 127 -th bit of NFSR for next
+// round
+inline static void
+update_nfsr(state_t* const st, const uint8_t b127)
+{
+  update(st->nfsr, b127);
 }
 
 }
