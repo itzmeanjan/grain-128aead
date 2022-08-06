@@ -66,7 +66,7 @@ select_bit(
 //
 // See definition of `h(x)` function in page 7 of Grain-128 AEAD specification
 // https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
-inline static void
+inline static uint8_t
 h(const state_t* const st)
 {
   const uint8_t x0 = select_bit(st->nfsr, compute_index(12));
@@ -98,7 +98,7 @@ h(const state_t* const st)
 //
 // See definition in page 7 of Grain-128 AEAD specification
 // https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
-inline static void
+inline static uint8_t
 ksb(const state_t* const st)
 {
   const uint8_t hx = h(st);
