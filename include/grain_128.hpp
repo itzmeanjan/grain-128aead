@@ -119,4 +119,23 @@ ksb(const state_t* const st)
   return yt;
 }
 
+// L(St) --- update function of LFSR, computing 127 -th bit of LFSR, for next
+// round
+//
+// See definition in page 7 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+inline static uint8_t
+l(const state_t* const st)
+{
+  const uint8_t s0 = select_bit(st->lfsr, compute_index(0));
+  const uint8_t s7 = select_bit(st->lfsr, compute_index(7));
+  const uint8_t s38 = select_bit(st->lfsr, compute_index(38));
+  const uint8_t s70 = select_bit(st->lfsr, compute_index(70));
+  const uint8_t s81 = select_bit(st->lfsr, compute_index(81));
+  const uint8_t s96 = select_bit(st->lfsr, compute_index(96));
+
+  const uint8_t s127 = s0 ^ s7 ^ s38 ^ s70 ^ s81 ^ s96;
+  return s127;
+}
+
 }
