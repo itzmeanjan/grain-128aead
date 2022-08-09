@@ -233,3 +233,30 @@ bench_grain_128aead::decrypt/32/2048    2025749 ns      2025582 ns          345 
 bench_grain_128aead::encrypt/32/4096    4177143 ns      4177052 ns          168 bytes_per_second=965.094k/s
 bench_grain_128aead::decrypt/32/4096    3994538 ns      3994287 ns          175 bytes_per_second=1009.25k/s
 ```
+
+## Usage
+
+Grain-128 AEAD is written such that it's pretty easy to start using in your project. All that is required is
+
+- Include `./include/grain_128aead.hpp` header file in your source
+- Use `encrypt`/ `decrypt` routines defined under namespace `grain_128aead`
+- Let your compiler know where to find these header files ( i.e. `./include` directory )
+
+For API documentation, I suggest you read through
+
+- [encrypt( ... )](https://github.com/itzmeanjan/grain-128aead/blob/55539e43c5d3b5c098944706a8855ae226546593/include/grain_128aead.hpp#L7-L21)
+- [decrypt( ... )](https://github.com/itzmeanjan/grain-128aead/blob/55539e43c5d3b5c098944706a8855ae226546593/include/grain_128aead.hpp#L43-L56)
+
+I keep API usage example [here](./example/main.cpp).
+
+```bash
+Grain-128 AEAD
+
+Key       : 08ecc6d3edaa57cbdf4bd4b6f43869fa
+Nonce     : f8f755034bff227fa107fac0
+Data      : f7b04b12051680d1af943e142e9e0e95e24c6bdf753edb4aa12480cc8d179ca5
+Text      : 38937413bedf5c753d0eaebc61467b814b4e6e9d6c1ab6ec4fbde192e4581afa
+Encrypted : 1cb5edd9aed81348df76ad4c197322daa0ec40f92020725d62fd52edf61906c9
+Decrypted : 38937413bedf5c753d0eaebc61467b814b4e6e9d6c1ab6ec4fbde192e4581afa
+Tag       : 1cb420123b94d3a7
+```
