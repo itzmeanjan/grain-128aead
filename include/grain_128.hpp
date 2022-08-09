@@ -287,4 +287,20 @@ update_nfsr(state_t* const st, const uint8_t b127)
   update(st->nfsr, b127);
 }
 
+// Updates Grain-128 AEAD accumulator, authenticating single input message bit,
+// following definition provided in section 2.3 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+inline static void
+update_accumulator(state_t* const st, // Grain-128 state
+                   const uint8_t msg  // single bit message, living in LSB
+)
+{
+  constexpr uint8_t br[2]{ 0b00000000, 0b11111111 };
+  const uint8_t widened = br[msg];
+
+  for (size_t i = 0; i < 8; i++) {
+    st->acc[i] ^= st->sreg[i] & widened;
+  }
+}
+
 }
