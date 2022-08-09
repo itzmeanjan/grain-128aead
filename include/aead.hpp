@@ -1,8 +1,6 @@
 #pragma once
 #include "grain_128.hpp"
-#include <array>
 #include <bit>
-#include <cmath>
 #include <cstring>
 
 // Grain-128 Authenticated Encryption with Associated Data
