@@ -109,4 +109,167 @@ initialize(grain_128::state_t* const __restrict st, // Grain-128 AEAD state
   }
 }
 
+// Authenticates associated data ( a bit at a time ), following specification
+// defined in section 2.3, 2.5 & 2.6.1 of Grain-128 AEAD
+//
+// Find document
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+static void
+auth_associated_data(
+  grain_128::state_t* const __restrict st, // Grain-128 AEAD state
+  const uint8_t* const __restrict data,    // N -bytes associated data
+  const size_t dlen                        // len(data) = N | >= 0
+)
+{
+  // DER encode length of associated data
+
+  uint8_t der[9]{};
+  const size_t der_len = encode_der(dlen, der);
+  const size_t der_blen = der_len << 3;
+
+  // Authenticate DER encoded length of associated data
+
+  for (size_t i = 0; i < der_blen; i++) {
+    const auto idx = grain_128::compute_index(i);
+    const uint8_t der_bit = grain_128::get_bit(der, idx);
+
+    [[maybe_unused]] const uint8_t yt_e = grain_128::ksb(st); // even
+
+    {
+      const uint8_t s127 = grain_128::l(st);
+      const uint8_t b127 = grain_128::f(st);
+
+      grain_128::update_lfsr(st, s127);
+      grain_128::update_nfsr(st, b127);
+    }
+
+    const uint8_t yt_o = grain_128::ksb(st); // odd
+
+    {
+      const uint8_t s127 = grain_128::l(st);
+      const uint8_t b127 = grain_128::f(st);
+
+      grain_128::update_lfsr(st, s127);
+      grain_128::update_nfsr(st, b127);
+    }
+
+    grain_128::update_accumulator(st, der_bit);
+    grain_128::update_register(st, yt_o);
+  }
+
+  // Authenticate associated data bits
+
+  const size_t dblen = dlen << 3;
+
+  for (size_t i = 0; i < dblen; i++) {
+    const auto idx = grain_128::compute_index(i);
+    const uint8_t d_bit = grain_128::get_bit(data, idx);
+
+    [[maybe_unused]] const uint8_t yt_e = grain_128::ksb(st); // even
+
+    {
+      const uint8_t s127 = grain_128::l(st);
+      const uint8_t b127 = grain_128::f(st);
+
+      grain_128::update_lfsr(st, s127);
+      grain_128::update_nfsr(st, b127);
+    }
+
+    const uint8_t yt_o = grain_128::ksb(st); // odd
+
+    {
+      const uint8_t s127 = grain_128::l(st);
+      const uint8_t b127 = grain_128::f(st);
+
+      grain_128::update_lfsr(st, s127);
+      grain_128::update_nfsr(st, b127);
+    }
+
+    grain_128::update_accumulator(st, d_bit);
+    grain_128::update_register(st, yt_o);
+  }
+}
+
+// Encrypts and authenticates plain text ( a bit at a time ), following
+// specification defined in section 2.3, 2.5 & 2.6.1 of Grain-128 AEAD
+//
+// Find document
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+static void
+enc_and_auth_txt(grain_128::state_t* const __restrict st,
+                 const uint8_t* const __restrict txt,
+                 uint8_t* const __restrict enc,
+                 const size_t ctlen)
+{
+  // Encrypt and authenticate plain text bits
+
+  const size_t ctblen = ctlen << 3;
+
+  for (size_t i = 0; i < ctblen; i++) {
+    const auto idx = grain_128::compute_index(i);
+    const uint8_t t_bit = grain_128::get_bit(txt, idx);
+
+    const uint8_t yt_e = grain_128::ksb(st); // even
+
+    {
+      const uint8_t s127 = grain_128::l(st);
+      const uint8_t b127 = grain_128::f(st);
+
+      grain_128::update_lfsr(st, s127);
+      grain_128::update_nfsr(st, b127);
+    }
+
+    const uint8_t c_bit = t_bit ^ yt_e;
+    grain_128::set_bit(enc, c_bit, idx);
+
+    const uint8_t yt_o = grain_128::ksb(st); // odd
+
+    {
+      const uint8_t s127 = grain_128::l(st);
+      const uint8_t b127 = grain_128::f(st);
+
+      grain_128::update_lfsr(st, s127);
+      grain_128::update_nfsr(st, b127);
+    }
+
+    grain_128::update_accumulator(st, t_bit);
+    grain_128::update_register(st, yt_o);
+  }
+}
+
+// Authenticates padding of single bit ( set to 1 ), following specification
+// defined in section 2.3 & 2.6 of Grain-128 AEAD
+//
+// Find document
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+static void
+auth_padding_bit(grain_128::state_t* const st)
+{
+  // Authenticate padding bit
+  constexpr uint8_t padding = 0b1;
+
+  [[maybe_unused]] const uint8_t yt_e = grain_128::ksb(st); // even
+
+  {
+    const uint8_t s127 = grain_128::l(st);
+    const uint8_t b127 = grain_128::f(st);
+
+    grain_128::update_lfsr(st, s127);
+    grain_128::update_nfsr(st, b127);
+  }
+
+  const uint8_t yt_o = grain_128::ksb(st); // odd
+
+  {
+    const uint8_t s127 = grain_128::l(st);
+    const uint8_t b127 = grain_128::f(st);
+
+    grain_128::update_lfsr(st, s127);
+    grain_128::update_nfsr(st, b127);
+  }
+
+  grain_128::update_accumulator(st, padding);
+  grain_128::update_register(st, yt_o);
+}
+
 }
