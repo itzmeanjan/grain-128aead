@@ -1,9 +1,46 @@
 #pragma once
 #include "grain_128.hpp"
+#include <array>
+#include <bit>
+#include <cmath>
 #include <cstring>
 
 // Grain-128 Authenticated Encryption with Associated Data
 namespace aead {
+
+// DER encoding of associated data length, returning back how many bytes of
+// useful data is present in preallocated memory (`der`), while encoding
+// associated data length in `der`.
+//
+// Note that it must be ensured that `der` has a length of 9 -bytes.
+//
+// See section 2.6.1 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf,
+// for understanding how DER encoding works.
+static size_t
+encode_der(const size_t dlen, // associated data length | >= 0 && < 2^64
+           uint8_t* const der // DER encoded length | assert len(der) == 9
+)
+{
+  std::memset(der, 0, 9);
+
+  if (dlen < 128) {
+    der[0] = static_cast<uint8_t>(dlen);
+
+    return 1ul;
+  } else {
+    const size_t bw = std::bit_width(dlen);
+    const size_t fcbc = (bw >> 3) + 1ul * ((bw & 7ul) > 0ul);
+
+    der[0] = static_cast<uint8_t>(0b10000000ul ^ fcbc);
+    for (size_t i = 1; i <= fcbc; i++) {
+      const size_t mask = 0xfful << ((fcbc - i) << 3);
+      der[i] = static_cast<uint8_t>((dlen & mask) >> ((fcbc - i) << 3));
+    }
+
+    return fcbc + 1;
+  }
+}
 
 // Initialize the internal state of pre-output generator and authenticator
 // generator registers with 128 -bit key and 96 -bit nonce, by clocking the
