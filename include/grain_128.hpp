@@ -291,7 +291,7 @@ update_nfsr(state_t* const st, const uint8_t b127)
 // following definition provided in section 2.3 of Grain-128 AEAD specification
 // https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
 inline static void
-update_accumulator(state_t* const st, // Grain-128 state
+update_accumulator(state_t* const st, // Grain-128 AEAD state
                    const uint8_t msg  // single bit message, living in LSB
 )
 {
@@ -301,6 +301,34 @@ update_accumulator(state_t* const st, // Grain-128 state
   for (size_t i = 0; i < 8; i++) {
     st->acc[i] ^= st->sreg[i] & widened;
   }
+}
+
+// Updates shift register using authentication bit ( every odd bit produced by
+// pre-output generator )
+//
+// See definition in section 2.3 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+inline static void
+update_register(state_t* const st, // Grain-128 AEAD state
+                const uint8_t auth // single authentication bit
+)
+{
+  const uint8_t s55 = get_bit(st->sreg, compute_index(56));
+  const uint8_t s47 = get_bit(st->sreg, compute_index(48));
+  const uint8_t s39 = get_bit(st->sreg, compute_index(40));
+  const uint8_t s31 = get_bit(st->sreg, compute_index(32));
+  const uint8_t s23 = get_bit(st->sreg, compute_index(24));
+  const uint8_t s15 = get_bit(st->sreg, compute_index(16));
+  const uint8_t s7 = get_bit(st->sreg, compute_index(8));
+
+  st->sreg[7] = (auth << 7) | (st->sreg[7] >> 1);
+  st->sreg[6] = (s55 << 7) | (st->sreg[6] >> 1);
+  st->sreg[5] = (s47 << 7) | (st->sreg[5] >> 1);
+  st->sreg[4] = (s39 << 7) | (st->sreg[4] >> 1);
+  st->sreg[3] = (s31 << 7) | (st->sreg[3] >> 1);
+  st->sreg[2] = (s23 << 7) | (st->sreg[2] >> 1);
+  st->sreg[1] = (s15 << 7) | (st->sreg[1] >> 1);
+  st->sreg[0] = (s7 << 7) | (st->sreg[0] >> 1);
 }
 
 }
