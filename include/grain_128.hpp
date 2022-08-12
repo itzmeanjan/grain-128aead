@@ -546,18 +546,77 @@ to_le_bytes(const uint64_t v, uint8_t* const bytes)
   }
 }
 
-// Updates Grain-128 AEAD accumulator, authenticating 8 input message bits,
-// following definition provided in section 2.3 of Grain-128 AEAD specification
+// Updates Grain-128 AEAD accumulator & shift register, authenticating 8 input
+// message bits ( consuming into accumulator ), while also using eight
+// authentication bits ( eight consecutive odd bits produced by pre-output
+// generator i.e. `ksb` ) following definition provided in section 2.3 of
+// Grain-128 AEAD specification
 // https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
 inline static void
-update_accumulator8(
-  state_t* const st, // Grain-128 AEAD state
-  const uint8_t msg  // 8 -bit wide message ( being authenticated )
+authenticated_byte(
+  state_t* const st, // Grain-128 AEAD cipher state
+  const uint8_t msg, // eight input message bits ( to be authenticated )
+  const uint8_t ksb  // eight odd pre-output generator bits ( auth bits )
 )
 {
-  for (size_t i = 0; i < 8; i++) {
-    st->acc[i] ^= st->sreg[i] & msg;
-  }
+  constexpr uint64_t br[]{
+    0b0000000000000000000000000000000000000000000000000000000000000000ul,
+    0b1111111111111111111111111111111111111111111111111111111111111111ul
+  };
+
+  const uint64_t acc0 = from_le_bytes(st->acc);
+  const uint64_t sreg0 = from_le_bytes(st->sreg);
+
+  const uint8_t m0 = (msg >> 0) & 0b1;
+  const uint8_t k0 = (ksb >> 0) & 0b1;
+
+  const uint64_t acc1 = acc0 ^ (br[m0] & sreg0);
+  const uint64_t sreg1 = (sreg0 >> 1) | (static_cast<uint64_t>(k0) << 63);
+
+  const uint8_t m1 = (msg >> 1) & 0b1;
+  const uint8_t k1 = (ksb >> 1) & 0b1;
+
+  const uint64_t acc2 = acc1 ^ (br[m1] & sreg1);
+  const uint64_t sreg2 = (sreg1 >> 1) | (static_cast<uint64_t>(k1) << 63);
+
+  const uint8_t m2 = (msg >> 2) & 0b1;
+  const uint8_t k2 = (ksb >> 2) & 0b1;
+
+  const uint64_t acc3 = acc2 ^ (br[m2] & sreg2);
+  const uint64_t sreg3 = (sreg2 >> 1) | (static_cast<uint64_t>(k2) << 63);
+
+  const uint8_t m3 = (msg >> 3) & 0b1;
+  const uint8_t k3 = (ksb >> 3) & 0b1;
+
+  const uint64_t acc4 = acc3 ^ (br[m3] & sreg3);
+  const uint64_t sreg4 = (sreg3 >> 1) | (static_cast<uint64_t>(k3) << 63);
+
+  const uint8_t m4 = (msg >> 4) & 0b1;
+  const uint8_t k4 = (ksb >> 4) & 0b1;
+
+  const uint64_t acc5 = acc4 ^ (br[m4] & sreg4);
+  const uint64_t sreg5 = (sreg4 >> 1) | (static_cast<uint64_t>(k4) << 63);
+
+  const uint8_t m5 = (msg >> 5) & 0b1;
+  const uint8_t k5 = (ksb >> 5) & 0b1;
+
+  const uint64_t acc6 = acc5 ^ (br[m5] & sreg5);
+  const uint64_t sreg6 = (sreg5 >> 1) | (static_cast<uint64_t>(k5) << 63);
+
+  const uint8_t m6 = (msg >> 6) & 0b1;
+  const uint8_t k6 = (ksb >> 6) & 0b1;
+
+  const uint64_t acc7 = acc6 ^ (br[m6] & sreg6);
+  const uint64_t sreg7 = (sreg6 >> 1) | (static_cast<uint64_t>(k6) << 63);
+
+  const uint8_t m7 = (msg >> 7) & 0b1;
+  const uint8_t k7 = (ksb >> 7) & 0b1;
+
+  const uint64_t acc8 = acc7 ^ (br[m7] & sreg7);
+  const uint64_t sreg8 = (sreg7 >> 1) | (static_cast<uint64_t>(k7) << 63);
+
+  to_le_bytes(acc8, st->acc);
+  to_le_bytes(sreg8, st->sreg);
 }
 
 // Updates shift register using authentication bit ( every odd bit produced by
@@ -586,23 +645,6 @@ update_register(state_t* const st, // Grain-128 AEAD state
   st->sreg[2] = (s23 << 7) | (st->sreg[2] >> 1);
   st->sreg[1] = (s15 << 7) | (st->sreg[1] >> 1);
   st->sreg[0] = (s7 << 7) | (st->sreg[0] >> 1);
-}
-
-// Updates shift register using authentication 8 bits ( eight consecutive odd
-// bits produced by pre-output generator )
-//
-// See definition in section 2.3 of Grain-128 AEAD specification
-// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
-inline static void
-update_register8(state_t* const st, // Grain-128 AEAD state
-                 const uint8_t auth // 8 authentication bits
-)
-{
-  for (size_t i = 0; i < 7; i++) {
-    st->sreg[i] = st->sreg[i + 1];
-  }
-
-  st->sreg[7] = auth;
 }
 
 }
