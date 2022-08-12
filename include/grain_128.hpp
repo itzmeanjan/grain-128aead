@@ -533,6 +533,19 @@ from_le_bytes(const uint8_t* const bytes)
          (static_cast<uint64_t>(bytes[0]) << 0);
 }
 
+// Given a 64 -bit unsigned integer & a byte array of length 8, this routine
+// interprets u64 in little endian byte order and places each of 8 bytes in
+// designated byte indices.
+inline static void
+to_le_bytes(const uint64_t v, uint8_t* const bytes)
+{
+  for (size_t i = 0; i < 8; i++) {
+    const size_t boff = i << 3;
+
+    bytes[i] = static_cast<uint8_t>(v >> boff);
+  }
+}
+
 // Updates Grain-128 AEAD accumulator, authenticating 8 input message bits,
 // following definition provided in section 2.3 of Grain-128 AEAD specification
 // https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
