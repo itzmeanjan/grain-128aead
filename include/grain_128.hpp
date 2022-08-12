@@ -518,6 +518,21 @@ update_accumulator(state_t* const st, // Grain-128 AEAD state
   }
 }
 
+// Given a byte array of length 8, this routine interprets those bytes in little
+// endian byte order, computing a 64 -bit unsigned integer
+inline static uint64_t
+from_le_bytes(const uint8_t* const bytes)
+{
+  return (static_cast<uint64_t>(bytes[7]) << 56) |
+         (static_cast<uint64_t>(bytes[6]) << 48) |
+         (static_cast<uint64_t>(bytes[5]) << 40) |
+         (static_cast<uint64_t>(bytes[4]) << 32) |
+         (static_cast<uint64_t>(bytes[3]) << 24) |
+         (static_cast<uint64_t>(bytes[2]) << 16) |
+         (static_cast<uint64_t>(bytes[1]) << 8) |
+         (static_cast<uint64_t>(bytes[0]) << 0);
+}
+
 // Updates Grain-128 AEAD accumulator, authenticating 8 input message bits,
 // following definition provided in section 2.3 of Grain-128 AEAD specification
 // https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
