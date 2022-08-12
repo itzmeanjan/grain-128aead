@@ -1,6 +1,8 @@
 #pragma once
+#include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <utility>
 
 // Grain-128 Authenticated Encryption with Associated Data
@@ -564,8 +566,15 @@ authenticated_byte(
     0b1111111111111111111111111111111111111111111111111111111111111111ul
   };
 
-  const uint64_t acc0 = from_le_bytes(st->acc);
-  const uint64_t sreg0 = from_le_bytes(st->sreg);
+  uint64_t acc0, sreg0;
+
+  if constexpr (std::endian::native == std::endian::little) {
+    std::memcpy(&acc0, st->acc, 8);
+    std::memcpy(&sreg0, st->sreg, 8);
+  } else {
+    acc0 = from_le_bytes(st->acc);
+    sreg0 = from_le_bytes(st->sreg);
+  }
 
   const uint8_t m0 = (msg >> 0) & 0b1;
   const uint8_t k0 = (ksb >> 0) & 0b1;
@@ -615,8 +624,13 @@ authenticated_byte(
   const uint64_t acc8 = acc7 ^ (br[m7] & sreg7);
   const uint64_t sreg8 = (sreg7 >> 1) | (static_cast<uint64_t>(k7) << 63);
 
-  to_le_bytes(acc8, st->acc);
-  to_le_bytes(sreg8, st->sreg);
+  if constexpr (std::endian::native == std::endian::little) {
+    std::memcpy(st->acc, &acc8, 8);
+    std::memcpy(st->sreg, &sreg8, 8);
+  } else {
+    to_le_bytes(acc8, st->acc);
+    to_le_bytes(sreg8, st->sreg);
+  }
 }
 
 // Updates shift register using authentication bit ( every odd bit produced by
