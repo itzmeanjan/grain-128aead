@@ -335,6 +335,73 @@ f(const state_t* const st)
   return b127;
 }
 
+// s0 + F(Bt) --- update function of NFSR, computing 8 bits of NFSR ( starting
+// from bit index 120 ), for next eight cipher clock rounds
+//
+// See definition in page 7 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+inline static uint8_t
+f8(const state_t* const st)
+{
+  const uint8_t s0 = get_8bits(st->lfsr, 0);
+
+  const uint8_t b0 = get_8bits(st->nfsr, 0);
+  const uint8_t b26 = get_8bits(st->nfsr, 26);
+  const uint8_t b56 = get_8bits(st->nfsr, 56);
+  const uint8_t b91 = get_8bits(st->nfsr, 91);
+  const uint8_t b96 = get_8bits(st->nfsr, 96);
+
+  const uint8_t b3 = get_8bits(st->nfsr, 3);
+  const uint8_t b67 = get_8bits(st->nfsr, 67);
+
+  const uint8_t b11 = get_8bits(st->nfsr, 11);
+  const uint8_t b13 = get_8bits(st->nfsr, 13);
+
+  const uint8_t b17 = get_8bits(st->nfsr, 17);
+  const uint8_t b18 = get_8bits(st->nfsr, 18);
+
+  const uint8_t b27 = get_8bits(st->nfsr, 27);
+  const uint8_t b59 = get_8bits(st->nfsr, 59);
+
+  const uint8_t b40 = get_8bits(st->nfsr, 40);
+  const uint8_t b48 = get_8bits(st->nfsr, 48);
+
+  const uint8_t b61 = get_8bits(st->nfsr, 61);
+  const uint8_t b65 = get_8bits(st->nfsr, 65);
+
+  const uint8_t b68 = get_8bits(st->nfsr, 68);
+  const uint8_t b84 = get_8bits(st->nfsr, 84);
+
+  const uint8_t b22 = get_8bits(st->nfsr, 22);
+  const uint8_t b24 = get_8bits(st->nfsr, 24);
+  const uint8_t b25 = get_8bits(st->nfsr, 25);
+
+  const uint8_t b70 = get_8bits(st->nfsr, 70);
+  const uint8_t b78 = get_8bits(st->nfsr, 78);
+  const uint8_t b82 = get_8bits(st->nfsr, 82);
+
+  const uint8_t b88 = get_8bits(st->nfsr, 88);
+  const uint8_t b92 = get_8bits(st->nfsr, 92);
+  const uint8_t b93 = get_8bits(st->nfsr, 93);
+  const uint8_t b95 = get_8bits(st->nfsr, 95);
+
+  const uint8_t t0 = b0 ^ b26 ^ b56 ^ b91 ^ b96;
+  const uint8_t t1 = b3 & b67;
+  const uint8_t t2 = b11 & b13;
+  const uint8_t t3 = b17 & b18;
+  const uint8_t t4 = b27 & b59;
+  const uint8_t t5 = b40 & b48;
+  const uint8_t t6 = b61 & b65;
+  const uint8_t t7 = b68 & b84;
+  const uint8_t t8 = b22 & b24 & b25;
+  const uint8_t t9 = b70 & b78 & b82;
+  const uint8_t t10 = b88 & b92 & b93 & b95;
+
+  const uint8_t fbt = t0 ^ t1 ^ t2 ^ t3 ^ t4 ^ t5 ^ t6 ^ t7 ^ t8 ^ t9 ^ t10;
+  const uint8_t b120 = s0 ^ fbt;
+  return b120;
+}
+
 // Updates 128 -bit register by dropping bit 0 & setting new bit 127 ( which is
 // provided )
 //
