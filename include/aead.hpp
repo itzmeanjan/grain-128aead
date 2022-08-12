@@ -58,54 +58,54 @@ initialize(grain_128::state_t* const __restrict st, // Grain-128 AEAD state
   std::memcpy(st->lfsr, nonce, 12);
   std::memcpy(st->lfsr + 12, lfsr32, 4);
 
-  for (size_t t = 0; t < 320; t++) {
-    const uint8_t yt = grain_128::ksb(st);
+  for (size_t t = 0; t < 40; t++) {
+    const uint8_t yt = grain_128::ksb8(st);
 
-    const uint8_t s127 = grain_128::l(st);
-    const uint8_t b127 = grain_128::f(st);
+    const uint8_t s120 = grain_128::l8(st);
+    const uint8_t b120 = grain_128::f8(st);
 
-    grain_128::update_lfsr(st, s127 ^ yt);
-    grain_128::update_nfsr(st, b127 ^ yt);
+    grain_128::update_lfsr8(st, s120 ^ yt);
+    grain_128::update_nfsr8(st, b120 ^ yt);
   }
 
-  for (size_t t = 0; t < 64; t++) {
-    const size_t ta = t + 64;
+  for (size_t t = 0; t < 8; t++) {
+    const size_t ta = t + 8;
     const size_t tb = t;
 
-    const uint8_t ka = grain_128::get_bit(key, grain_128::compute_index(ta));
-    const uint8_t kb = grain_128::get_bit(key, grain_128::compute_index(tb));
+    const uint8_t ka = key[ta];
+    const uint8_t kb = key[tb];
 
-    const uint8_t yt = grain_128::ksb(st);
+    const uint8_t yt = grain_128::ksb8(st);
 
-    const uint8_t s127 = grain_128::l(st);
-    const uint8_t b127 = grain_128::f(st);
+    const uint8_t s120 = grain_128::l8(st);
+    const uint8_t b120 = grain_128::f8(st);
 
-    grain_128::update_lfsr(st, s127 ^ yt ^ ka);
-    grain_128::update_nfsr(st, b127 ^ yt ^ kb);
+    grain_128::update_lfsr8(st, s120 ^ yt ^ ka);
+    grain_128::update_nfsr8(st, b120 ^ yt ^ kb);
   }
 
-  for (size_t t = 0; t < 64; t++) {
-    const uint8_t yt = grain_128::ksb(st);
+  for (size_t t = 0; t < 8; t++) {
+    const uint8_t yt = grain_128::ksb8(st);
 
-    grain_128::set_bit(st->acc, yt, grain_128::compute_index(t));
+    st->acc[t] = yt;
 
-    const uint8_t s127 = grain_128::l(st);
-    const uint8_t b127 = grain_128::f(st);
+    const uint8_t s120 = grain_128::l8(st);
+    const uint8_t b120 = grain_128::f8(st);
 
-    grain_128::update_lfsr(st, s127);
-    grain_128::update_nfsr(st, b127);
+    grain_128::update_lfsr8(st, s120);
+    grain_128::update_nfsr8(st, b120);
   }
 
-  for (size_t t = 0; t < 64; t++) {
-    const uint8_t yt = grain_128::ksb(st);
+  for (size_t t = 0; t < 8; t++) {
+    const uint8_t yt = grain_128::ksb8(st);
 
-    grain_128::set_bit(st->sreg, yt, grain_128::compute_index(t));
+    st->sreg[t] = yt;
 
-    const uint8_t s127 = grain_128::l(st);
-    const uint8_t b127 = grain_128::f(st);
+    const uint8_t s120 = grain_128::l8(st);
+    const uint8_t b120 = grain_128::f8(st);
 
-    grain_128::update_lfsr(st, s127);
-    grain_128::update_nfsr(st, b127);
+    grain_128::update_lfsr8(st, s120);
+    grain_128::update_nfsr8(st, b120);
   }
 }
 
