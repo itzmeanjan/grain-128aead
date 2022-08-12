@@ -38,6 +38,26 @@ compute_index(
   return std::make_pair(off, boff);
 }
 
+// Given a byte array and a starting bit index ( in that byte array ), this
+// routine extracts out 8 consecutive bits ( all indexing starts from 0 )
+// starting from provided bit index | end index is calculated as (sidx + 7)
+inline static constexpr uint8_t
+get_8bits(const uint8_t* const arr, const size_t sidx)
+{
+  const size_t eidx = sidx + 7ul;
+
+  const auto sidx_ = compute_index(sidx);
+  const auto eidx_ = compute_index(eidx);
+
+  const uint8_t lo = arr[sidx_.first] >> sidx_.second;
+  const uint8_t hi = arr[eidx_.first] << (7ul - eidx_.second);
+
+  const bool flg = (sidx & 7ul) == 0ul;
+  const uint8_t bits = hi | (lo * !flg);
+
+  return bits;
+}
+
 // Given a byte array and an index pair in terms of a byte offset & a bit offset
 // ( inside the byte, which itself is selected using byte offset argument ),
 // this routine extracts out the bit and places it in least significant position
