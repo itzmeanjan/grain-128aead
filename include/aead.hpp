@@ -304,31 +304,33 @@ dec_and_auth_txt(grain_128::state_t* const __restrict st,
 static void
 auth_padding_bit(grain_128::state_t* const st)
 {
-  // Authenticate padding bit
-  constexpr uint8_t padding = 0b1;
+  // Authenticate padding bit ( note 7 most significant bits are set to 0, so
+  // their presence doesn't hurt )
+  constexpr uint8_t padding = 0b00000001;
 
-  [[maybe_unused]] const uint8_t yt_e = grain_128::ksb(st); // even
-
-  {
-    const uint8_t s127 = grain_128::l(st);
-    const uint8_t b127 = grain_128::f(st);
-
-    grain_128::update_lfsr(st, s127);
-    grain_128::update_nfsr(st, b127);
-  }
-
-  const uint8_t yt_o = grain_128::ksb(st); // odd
+  const uint8_t yt0 = grain_128::ksb8(st);
 
   {
-    const uint8_t s127 = grain_128::l(st);
-    const uint8_t b127 = grain_128::f(st);
+    const uint8_t s120 = grain_128::l8(st);
+    const uint8_t b120 = grain_128::f8(st);
 
-    grain_128::update_lfsr(st, s127);
-    grain_128::update_nfsr(st, b127);
+    grain_128::update_lfsr8(st, s120);
+    grain_128::update_nfsr8(st, b120);
   }
 
-  grain_128::update_accumulator(st, padding);
-  grain_128::update_register(st, yt_o);
+  const uint8_t yt1 = grain_128::ksb8(st);
+
+  {
+    const uint8_t s120 = grain_128::l8(st);
+    const uint8_t b120 = grain_128::f8(st);
+
+    grain_128::update_lfsr8(st, s120);
+    grain_128::update_nfsr8(st, b120);
+  }
+
+  const auto splitted = split_bits(yt0, yt1);
+
+  grain_128::authenticated_byte(st, padding, splitted.second);
 }
 
 }
