@@ -197,6 +197,39 @@ ksb(const state_t* const st)
   return yt;
 }
 
+// Pre-output generator function, producing eight output (key stream) bits,
+// using formula
+//
+// yt = h(x) + st93 + ∑ j∈A (btj)
+//
+// A = {2, 15, 36, 45, 64, 73, 89}
+//
+// See definition in page 7 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+//
+// Note, this function should do what `ksb(...)` does, but for 8 consecutive
+// rounds i.e. producing 8 key stream bits per function invocation.
+inline static uint8_t
+ksb8(const state_t* const st)
+{
+  const uint8_t hx = h8(st);
+
+  const uint8_t s93 = get_8bits(st->lfsr, 93);
+
+  const uint8_t b2 = get_8bits(st->nfsr, 2);
+  const uint8_t b15 = get_8bits(st->nfsr, 15);
+  const uint8_t b36 = get_8bits(st->nfsr, 36);
+  const uint8_t b45 = get_8bits(st->nfsr, 45);
+  const uint8_t b64 = get_8bits(st->nfsr, 64);
+  const uint8_t b73 = get_8bits(st->nfsr, 73);
+  const uint8_t b89 = get_8bits(st->nfsr, 89);
+
+  const uint8_t bt = b2 ^ b15 ^ b36 ^ b45 ^ b64 ^ b73 ^ b89;
+
+  const uint8_t yt = hx ^ s93 ^ bt;
+  return yt;
+}
+
 // L(St) --- update function of LFSR, computing 127 -th bit of LFSR, for next
 // round
 //
