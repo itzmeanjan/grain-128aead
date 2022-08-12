@@ -255,7 +255,7 @@ enc_and_auth_txt(grain_128::state_t* const __restrict st,
   }
 }
 
-// Decrypts cipher text and authenticates decrypted text ( a bit at a time ),
+// Decrypts cipher text and authenticates decrypted text ( 8 bits at a time ),
 // following specification defined in section 2.3, 2.5 & 2.6.2 of Grain-128 AEAD
 //
 // Find document
@@ -268,37 +268,31 @@ dec_and_auth_txt(grain_128::state_t* const __restrict st,
 {
   // Decrypt cipher text and authenticate encrypted text bits
 
-  const size_t ctblen = ctlen << 3;
-
-  for (size_t i = 0; i < ctblen; i++) {
-    const auto idx = grain_128::compute_index(i);
-    const uint8_t c_bit = grain_128::get_bit(enc, idx);
-
-    const uint8_t yt_e = grain_128::ksb(st); // even
+  for (size_t i = 0; i < ctlen; i++) {
+    const uint8_t yt0 = grain_128::ksb8(st);
 
     {
-      const uint8_t s127 = grain_128::l(st);
-      const uint8_t b127 = grain_128::f(st);
+      const uint8_t s120 = grain_128::l8(st);
+      const uint8_t b120 = grain_128::f8(st);
 
-      grain_128::update_lfsr(st, s127);
-      grain_128::update_nfsr(st, b127);
+      grain_128::update_lfsr8(st, s120);
+      grain_128::update_nfsr8(st, b120);
     }
 
-    const uint8_t t_bit = c_bit ^ yt_e;
-    grain_128::set_bit(txt, t_bit, idx);
-
-    const uint8_t yt_o = grain_128::ksb(st); // odd
+    const uint8_t yt1 = grain_128::ksb8(st);
 
     {
-      const uint8_t s127 = grain_128::l(st);
-      const uint8_t b127 = grain_128::f(st);
+      const uint8_t s120 = grain_128::l8(st);
+      const uint8_t b120 = grain_128::f8(st);
 
-      grain_128::update_lfsr(st, s127);
-      grain_128::update_nfsr(st, b127);
+      grain_128::update_lfsr8(st, s120);
+      grain_128::update_nfsr8(st, b120);
     }
 
-    grain_128::update_accumulator(st, t_bit);
-    grain_128::update_register(st, yt_o);
+    const auto splitted = split_bits(yt0, yt1);
+
+    txt[i] = enc[i] ^ splitted.first;                           // decrypt
+    grain_128::authenticated_byte(st, txt[i], splitted.second); // authenticate
   }
 }
 
