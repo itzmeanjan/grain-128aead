@@ -40,6 +40,37 @@ encode_der(const size_t dlen, // associated data length | >= 0 && < 2^64
   }
 }
 
+// Given two 8 -bit unsigned integers, representing 16 key stream bits produced
+// by Grain-128 AEAD stream cipher ( in consecutive cipher clock cycles ), this
+// routine seperates out even and odd index bits
+//
+// Note, first -> [b7, b6, b5, b4, b3, b2, b1, b0]
+//     second -> [b15, b14, b13, b12, b11, b10, b9, b8]
+//
+// Returned byte pair looks like (even_bits, odd_bits)
+static const std::pair<uint8_t, uint8_t>
+split_bits(const uint8_t first, const uint8_t second)
+{
+  uint8_t even = 0;
+  uint8_t odd = 0;
+
+  for (size_t i = 0; i < 4; i++) {
+    const size_t sboff_e = i << 1;
+    const size_t sboff_o = sboff_e ^ 1;
+
+    const size_t dboff0 = i;
+    const size_t dboff1 = i + 4ul;
+
+    even |= ((first >> sboff_e) & 0b1) << dboff0;
+    even |= ((second >> sboff_e) & 0b1) << dboff1;
+
+    odd |= ((first >> sboff_o) & 0b1) << dboff0;
+    odd |= ((second >> sboff_o) & 0b1) << dboff1;
+  }
+
+  return std::make_pair(even, odd);
+}
+
 // Initialize the internal state of pre-output generator and authenticator
 // generator registers with 128 -bit key and 96 -bit nonce, by clocking the
 // cipher (total) 512 times
