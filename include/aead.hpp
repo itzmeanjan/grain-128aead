@@ -1,7 +1,5 @@
 #pragma once
 #include "grain_128.hpp"
-#include <bit>
-#include <cstring>
 
 // Grain-128 Authenticated Encryption with Associated Data
 namespace aead {
@@ -90,13 +88,13 @@ initialize(grain_128::state_t* const __restrict st, // Grain-128 AEAD state
   std::memcpy(st->lfsr + 12, lfsr32, 4);
 
   for (size_t t = 0; t < 40; t++) {
-    const uint8_t yt = grain_128::ksb8(st);
+    const uint8_t yt = grain_128::ksb(st);
 
-    const uint8_t s120 = grain_128::l8(st);
-    const uint8_t b120 = grain_128::f8(st);
+    const uint8_t s120 = grain_128::l(st);
+    const uint8_t b120 = grain_128::f(st);
 
-    grain_128::update_lfsr8(st, s120 ^ yt);
-    grain_128::update_nfsr8(st, b120 ^ yt);
+    grain_128::update_lfsr(st, s120 ^ yt);
+    grain_128::update_nfsr(st, b120 ^ yt);
   }
 
   for (size_t t = 0; t < 8; t++) {
@@ -106,37 +104,37 @@ initialize(grain_128::state_t* const __restrict st, // Grain-128 AEAD state
     const uint8_t ka = key[ta];
     const uint8_t kb = key[tb];
 
-    const uint8_t yt = grain_128::ksb8(st);
+    const uint8_t yt = grain_128::ksb(st);
 
-    const uint8_t s120 = grain_128::l8(st);
-    const uint8_t b120 = grain_128::f8(st);
+    const uint8_t s120 = grain_128::l(st);
+    const uint8_t b120 = grain_128::f(st);
 
-    grain_128::update_lfsr8(st, s120 ^ yt ^ ka);
-    grain_128::update_nfsr8(st, b120 ^ yt ^ kb);
+    grain_128::update_lfsr(st, s120 ^ yt ^ ka);
+    grain_128::update_nfsr(st, b120 ^ yt ^ kb);
   }
 
   for (size_t t = 0; t < 8; t++) {
-    const uint8_t yt = grain_128::ksb8(st);
+    const uint8_t yt = grain_128::ksb(st);
 
     st->acc[t] = yt;
 
-    const uint8_t s120 = grain_128::l8(st);
-    const uint8_t b120 = grain_128::f8(st);
+    const uint8_t s120 = grain_128::l(st);
+    const uint8_t b120 = grain_128::f(st);
 
-    grain_128::update_lfsr8(st, s120);
-    grain_128::update_nfsr8(st, b120);
+    grain_128::update_lfsr(st, s120);
+    grain_128::update_nfsr(st, b120);
   }
 
   for (size_t t = 0; t < 8; t++) {
-    const uint8_t yt = grain_128::ksb8(st);
+    const uint8_t yt = grain_128::ksb(st);
 
     st->sreg[t] = yt;
 
-    const uint8_t s120 = grain_128::l8(st);
-    const uint8_t b120 = grain_128::f8(st);
+    const uint8_t s120 = grain_128::l(st);
+    const uint8_t b120 = grain_128::f(st);
 
-    grain_128::update_lfsr8(st, s120);
-    grain_128::update_nfsr8(st, b120);
+    grain_128::update_lfsr(st, s120);
+    grain_128::update_nfsr(st, b120);
   }
 }
 
@@ -160,24 +158,24 @@ auth_associated_data(
   // Authenticate DER encoded length of associated data
 
   for (size_t i = 0; i < der_len; i++) {
-    const uint8_t yt0 = grain_128::ksb8(st);
+    const uint8_t yt0 = grain_128::ksb(st);
 
     {
-      const uint8_t s120 = grain_128::l8(st);
-      const uint8_t b120 = grain_128::f8(st);
+      const uint8_t s120 = grain_128::l(st);
+      const uint8_t b120 = grain_128::f(st);
 
-      grain_128::update_lfsr8(st, s120);
-      grain_128::update_nfsr8(st, b120);
+      grain_128::update_lfsr(st, s120);
+      grain_128::update_nfsr(st, b120);
     }
 
-    const uint8_t yt1 = grain_128::ksb8(st);
+    const uint8_t yt1 = grain_128::ksb(st);
 
     {
-      const uint8_t s120 = grain_128::l8(st);
-      const uint8_t b120 = grain_128::f8(st);
+      const uint8_t s120 = grain_128::l(st);
+      const uint8_t b120 = grain_128::f(st);
 
-      grain_128::update_lfsr8(st, s120);
-      grain_128::update_nfsr8(st, b120);
+      grain_128::update_lfsr(st, s120);
+      grain_128::update_nfsr(st, b120);
     }
 
     const auto splitted = split_bits(yt0, yt1);
@@ -188,24 +186,24 @@ auth_associated_data(
   // Authenticate associated data bits
 
   for (size_t i = 0; i < dlen; i++) {
-    const uint8_t yt0 = grain_128::ksb8(st);
+    const uint8_t yt0 = grain_128::ksb(st);
 
     {
-      const uint8_t s120 = grain_128::l8(st);
-      const uint8_t b120 = grain_128::f8(st);
+      const uint8_t s120 = grain_128::l(st);
+      const uint8_t b120 = grain_128::f(st);
 
-      grain_128::update_lfsr8(st, s120);
-      grain_128::update_nfsr8(st, b120);
+      grain_128::update_lfsr(st, s120);
+      grain_128::update_nfsr(st, b120);
     }
 
-    const uint8_t yt1 = grain_128::ksb8(st);
+    const uint8_t yt1 = grain_128::ksb(st);
 
     {
-      const uint8_t s120 = grain_128::l8(st);
-      const uint8_t b120 = grain_128::f8(st);
+      const uint8_t s120 = grain_128::l(st);
+      const uint8_t b120 = grain_128::f(st);
 
-      grain_128::update_lfsr8(st, s120);
-      grain_128::update_nfsr8(st, b120);
+      grain_128::update_lfsr(st, s120);
+      grain_128::update_nfsr(st, b120);
     }
 
     const auto splitted = split_bits(yt0, yt1);
@@ -228,24 +226,24 @@ enc_and_auth_txt(grain_128::state_t* const __restrict st,
   // Encrypt and authenticate plain text bits
 
   for (size_t i = 0; i < ctlen; i++) {
-    const uint8_t yt0 = grain_128::ksb8(st);
+    const uint8_t yt0 = grain_128::ksb(st);
 
     {
-      const uint8_t s120 = grain_128::l8(st);
-      const uint8_t b120 = grain_128::f8(st);
+      const uint8_t s120 = grain_128::l(st);
+      const uint8_t b120 = grain_128::f(st);
 
-      grain_128::update_lfsr8(st, s120);
-      grain_128::update_nfsr8(st, b120);
+      grain_128::update_lfsr(st, s120);
+      grain_128::update_nfsr(st, b120);
     }
 
-    const uint8_t yt1 = grain_128::ksb8(st);
+    const uint8_t yt1 = grain_128::ksb(st);
 
     {
-      const uint8_t s120 = grain_128::l8(st);
-      const uint8_t b120 = grain_128::f8(st);
+      const uint8_t s120 = grain_128::l(st);
+      const uint8_t b120 = grain_128::f(st);
 
-      grain_128::update_lfsr8(st, s120);
-      grain_128::update_nfsr8(st, b120);
+      grain_128::update_lfsr(st, s120);
+      grain_128::update_nfsr(st, b120);
     }
 
     const auto splitted = split_bits(yt0, yt1);
@@ -269,24 +267,24 @@ dec_and_auth_txt(grain_128::state_t* const __restrict st,
   // Decrypt cipher text and authenticate encrypted text bits
 
   for (size_t i = 0; i < ctlen; i++) {
-    const uint8_t yt0 = grain_128::ksb8(st);
+    const uint8_t yt0 = grain_128::ksb(st);
 
     {
-      const uint8_t s120 = grain_128::l8(st);
-      const uint8_t b120 = grain_128::f8(st);
+      const uint8_t s120 = grain_128::l(st);
+      const uint8_t b120 = grain_128::f(st);
 
-      grain_128::update_lfsr8(st, s120);
-      grain_128::update_nfsr8(st, b120);
+      grain_128::update_lfsr(st, s120);
+      grain_128::update_nfsr(st, b120);
     }
 
-    const uint8_t yt1 = grain_128::ksb8(st);
+    const uint8_t yt1 = grain_128::ksb(st);
 
     {
-      const uint8_t s120 = grain_128::l8(st);
-      const uint8_t b120 = grain_128::f8(st);
+      const uint8_t s120 = grain_128::l(st);
+      const uint8_t b120 = grain_128::f(st);
 
-      grain_128::update_lfsr8(st, s120);
-      grain_128::update_nfsr8(st, b120);
+      grain_128::update_lfsr(st, s120);
+      grain_128::update_nfsr(st, b120);
     }
 
     const auto splitted = split_bits(yt0, yt1);
@@ -308,24 +306,24 @@ auth_padding_bit(grain_128::state_t* const st)
   // their presence doesn't hurt )
   constexpr uint8_t padding = 0b00000001;
 
-  const uint8_t yt0 = grain_128::ksb8(st);
+  const uint8_t yt0 = grain_128::ksb(st);
 
   {
-    const uint8_t s120 = grain_128::l8(st);
-    const uint8_t b120 = grain_128::f8(st);
+    const uint8_t s120 = grain_128::l(st);
+    const uint8_t b120 = grain_128::f(st);
 
-    grain_128::update_lfsr8(st, s120);
-    grain_128::update_nfsr8(st, b120);
+    grain_128::update_lfsr(st, s120);
+    grain_128::update_nfsr(st, b120);
   }
 
-  const uint8_t yt1 = grain_128::ksb8(st);
+  const uint8_t yt1 = grain_128::ksb(st);
 
   {
-    const uint8_t s120 = grain_128::l8(st);
-    const uint8_t b120 = grain_128::f8(st);
+    const uint8_t s120 = grain_128::l(st);
+    const uint8_t b120 = grain_128::f(st);
 
-    grain_128::update_lfsr8(st, s120);
-    grain_128::update_nfsr8(st, b120);
+    grain_128::update_lfsr(st, s120);
+    grain_128::update_nfsr(st, b120);
   }
 
   const auto splitted = split_bits(yt0, yt1);
