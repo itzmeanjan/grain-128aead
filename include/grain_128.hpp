@@ -518,6 +518,20 @@ update_accumulator(state_t* const st, // Grain-128 AEAD state
   }
 }
 
+// Updates Grain-128 AEAD accumulator, authenticating 8 input message bits,
+// following definition provided in section 2.3 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+inline static void
+update_accumulator8(
+  state_t* const st, // Grain-128 AEAD state
+  const uint8_t msg  // 8 -bit wide message ( being authenticated )
+)
+{
+  for (size_t i = 0; i < 8; i++) {
+    st->acc[i] ^= st->sreg[i] & msg;
+  }
+}
+
 // Updates shift register using authentication bit ( every odd bit produced by
 // pre-output generator )
 //
@@ -544,6 +558,23 @@ update_register(state_t* const st, // Grain-128 AEAD state
   st->sreg[2] = (s23 << 7) | (st->sreg[2] >> 1);
   st->sreg[1] = (s15 << 7) | (st->sreg[1] >> 1);
   st->sreg[0] = (s7 << 7) | (st->sreg[0] >> 1);
+}
+
+// Updates shift register using authentication 8 bits ( eight consecutive odd
+// bits produced by pre-output generator )
+//
+// See definition in section 2.3 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+inline static void
+update_register8(state_t* const st, // Grain-128 AEAD state
+                 const uint8_t auth // 8 authentication bits
+)
+{
+  for (size_t i = 0; i < 7; i++) {
+    st->sreg[i] = st->sreg[i + 1];
+  }
+
+  st->sreg[7] = auth;
 }
 
 }
