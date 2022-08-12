@@ -140,7 +140,7 @@ initialize(grain_128::state_t* const __restrict st, // Grain-128 AEAD state
   }
 }
 
-// Authenticates associated data ( a bit at a time ), following specification
+// Authenticates associated data ( 8 bits at a time ), following specification
 // defined in section 2.3, 2.5 & 2.6.1 of Grain-128 AEAD
 //
 // Find document
@@ -156,68 +156,61 @@ auth_associated_data(
 
   uint8_t der[9]{};
   const size_t der_len = encode_der(dlen, der);
-  const size_t der_blen = der_len << 3;
 
   // Authenticate DER encoded length of associated data
 
-  for (size_t i = 0; i < der_blen; i++) {
-    const auto idx = grain_128::compute_index(i);
-    const uint8_t der_bit = grain_128::get_bit(der, idx);
-
-    [[maybe_unused]] const uint8_t yt_e = grain_128::ksb(st); // even
+  for (size_t i = 0; i < der_len; i++) {
+    const uint8_t yt0 = grain_128::ksb8(st);
 
     {
-      const uint8_t s127 = grain_128::l(st);
-      const uint8_t b127 = grain_128::f(st);
+      const uint8_t s120 = grain_128::l8(st);
+      const uint8_t b120 = grain_128::f8(st);
 
-      grain_128::update_lfsr(st, s127);
-      grain_128::update_nfsr(st, b127);
+      grain_128::update_lfsr8(st, s120);
+      grain_128::update_nfsr8(st, b120);
     }
 
-    const uint8_t yt_o = grain_128::ksb(st); // odd
+    const uint8_t yt1 = grain_128::ksb8(st);
 
     {
-      const uint8_t s127 = grain_128::l(st);
-      const uint8_t b127 = grain_128::f(st);
+      const uint8_t s120 = grain_128::l8(st);
+      const uint8_t b120 = grain_128::f8(st);
 
-      grain_128::update_lfsr(st, s127);
-      grain_128::update_nfsr(st, b127);
+      grain_128::update_lfsr8(st, s120);
+      grain_128::update_nfsr8(st, b120);
     }
 
-    grain_128::update_accumulator(st, der_bit);
-    grain_128::update_register(st, yt_o);
+    const auto splitted = split_bits(yt0, yt1);
+
+    grain_128::authenticated_byte(st, der[i], splitted.second);
   }
 
   // Authenticate associated data bits
 
-  const size_t dblen = dlen << 3;
-
-  for (size_t i = 0; i < dblen; i++) {
-    const auto idx = grain_128::compute_index(i);
-    const uint8_t d_bit = grain_128::get_bit(data, idx);
-
-    [[maybe_unused]] const uint8_t yt_e = grain_128::ksb(st); // even
+  for (size_t i = 0; i < dlen; i++) {
+    const uint8_t yt0 = grain_128::ksb8(st);
 
     {
-      const uint8_t s127 = grain_128::l(st);
-      const uint8_t b127 = grain_128::f(st);
+      const uint8_t s120 = grain_128::l8(st);
+      const uint8_t b120 = grain_128::f8(st);
 
-      grain_128::update_lfsr(st, s127);
-      grain_128::update_nfsr(st, b127);
+      grain_128::update_lfsr8(st, s120);
+      grain_128::update_nfsr8(st, b120);
     }
 
-    const uint8_t yt_o = grain_128::ksb(st); // odd
+    const uint8_t yt1 = grain_128::ksb8(st);
 
     {
-      const uint8_t s127 = grain_128::l(st);
-      const uint8_t b127 = grain_128::f(st);
+      const uint8_t s120 = grain_128::l8(st);
+      const uint8_t b120 = grain_128::f8(st);
 
-      grain_128::update_lfsr(st, s127);
-      grain_128::update_nfsr(st, b127);
+      grain_128::update_lfsr8(st, s120);
+      grain_128::update_nfsr8(st, b120);
     }
 
-    grain_128::update_accumulator(st, d_bit);
-    grain_128::update_register(st, yt_o);
+    const auto splitted = split_bits(yt0, yt1);
+
+    grain_128::authenticated_byte(st, data[i], splitted.second);
   }
 }
 
