@@ -445,6 +445,23 @@ update(uint8_t* const reg,  // 128 -bit register to be updated
   reg[0] = (s7 << 7) | (reg[0] >> 1);
 }
 
+// Updates 128 -bit register by dropping bit [0..8) & setting new bit [120..128)
+// ( which is provided by parameter `bit120` ), while shifting other bits
+// leftwards ( i.e. MSB moving towards LSB ) | bit0 -> LSB and bit127 -> MSB
+//
+// This generic function can be used for updating both 128 -bit LFSR and NFSR
+inline static void
+update8(uint8_t* const reg,  // 128 -bit register to be updated
+        const uint8_t bit120 // set bit [120..128) to this value
+)
+{
+  for (size_t i = 0; i < 15; i++) {
+    reg[i] = reg[i + 1];
+  }
+
+  reg[15] = bit120;
+}
+
 // Updates LFSR, by shifting 128 -bit register by 1 -bit leftwards ( when least
 // significant bit lives on left side of the bit array i.e. bit 0 is dropped &
 // new bit 127 is placed ), while placing `s127` as 127 -th bit of LFSR for next
@@ -455,6 +472,16 @@ update_lfsr(state_t* const st, const uint8_t s127)
   update(st->lfsr, s127);
 }
 
+// Updates LFSR, by shifting 128 -bit register by 8 -bits leftwards ( when least
+// significant bit lives on left side of the bit array i.e. bits [0..8) are
+// dropped & new bits [120..128) are placed ), while placing `s120` as
+// [120..128) -th bits of LFSR for next iteration
+inline static void
+update_lfsr8(state_t* const st, const uint8_t s120)
+{
+  update8(st->lfsr, s120);
+}
+
 // Updates NFSR, by shifting 128 -bit register by 1 -bit leftwards ( when least
 // significant bit lives on left side of the bit array i.e. bit 0 is dropped &
 // new bit 127 is placed ), while placing `b127` as 127 -th bit of NFSR for next
@@ -463,6 +490,16 @@ inline static void
 update_nfsr(state_t* const st, const uint8_t b127)
 {
   update(st->nfsr, b127);
+}
+
+// Updates NFSR, by shifting 128 -bit register by 8 -bits leftwards ( when least
+// significant bit lives on left side of the bit array i.e. bits [0..8) are
+// dropped & new bits [120..128) are placed ), while placing `b120` as
+// [120..128) -th bits of NFSR for next iteration
+inline static void
+update_nfsr8(state_t* const st, const uint8_t b120)
+{
+  update8(st->nfsr, b120);
 }
 
 // Updates Grain-128 AEAD accumulator, authenticating single input message bit,
