@@ -128,6 +128,45 @@ h(const state_t* const st)
   return hx;
 }
 
+// Boolean function `h(x)`, which takes 9 state variable bits ( for 8
+// consecutive cipher clocks ) & produces single bit ( for 8 consecutive cipher
+// clocks ), using formula
+//
+// h(x) = x0x1 + x2x3 + x4x5 + x6x7 + x0x4x8
+//
+// 2 of these input bits are from NFSR, while remaining 7 of them are from LFSR.
+//
+// Bits correspond to (x0, x1, ...x7, x8) -> (NFSR12, LFSR8, LFSR13, LFSR20,
+// NFSR95, LFSR42, LFSR60, LFSR79, LFSR94)
+//
+// See definition of `h(x)` function in page 7 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+//
+// Note, this function should do what `h(...)` does, but for 8 consecutive
+// rounds i.e. processing 8 bits per function invocation.
+inline static uint8_t
+h8(const state_t* const st)
+{
+  const uint8_t x0 = get_8bits(st->nfsr, 12);
+  const uint8_t x1 = get_8bits(st->lfsr, 8);
+  const uint8_t x2 = get_8bits(st->lfsr, 13);
+  const uint8_t x3 = get_8bits(st->lfsr, 20);
+  const uint8_t x4 = get_8bits(st->nfsr, 95);
+  const uint8_t x5 = get_8bits(st->lfsr, 42);
+  const uint8_t x6 = get_8bits(st->lfsr, 60);
+  const uint8_t x7 = get_8bits(st->lfsr, 79);
+  const uint8_t x8 = get_8bits(st->lfsr, 94);
+
+  const uint8_t x0x1 = x0 & x1;
+  const uint8_t x2x3 = x2 & x3;
+  const uint8_t x4x5 = x4 & x5;
+  const uint8_t x6x7 = x6 & x7;
+  const uint8_t x0x4x8 = x0 & x4 & x8;
+
+  const uint8_t hx = x0x1 ^ x2x3 ^ x4x5 ^ x6x7 ^ x0x4x8;
+  return hx;
+}
+
 // Pre-output generator function, producing single output (key stream) bit,
 // using formula
 //
