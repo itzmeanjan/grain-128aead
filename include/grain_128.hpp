@@ -60,6 +60,38 @@ get_8bits(const uint8_t* const arr, const size_t sidx)
   return bits;
 }
 
+// Given a byte array and a starting bit index ( in that byte array ), this
+// routine extracts out 32 consecutive bits ( all indexing starts from 0 )
+// starting from provided bit index | end index is calculated as (sidx + 31)
+inline static constexpr uint32_t
+get_32bits(const uint8_t* const arr, const size_t sidx)
+{
+  const size_t eidx = sidx + 31ul;
+
+  const auto sidx_ = compute_index(sidx);
+  const auto eidx_ = compute_index(eidx);
+
+  const uint8_t lo = arr[sidx_.first] >> sidx_.second;
+  const uint8_t hi = arr[eidx_.first] << (7ul - eidx_.second);
+
+  const size_t mid_bytes = eidx_.first - sidx_.first + 1ul;
+
+  const uint32_t lsb = static_cast<uint32_t>(lo);
+  const uint32_t msb = static_cast<uint32_t>(hi) << (mid_bytes << 3);
+
+  uint32_t mid = 0u;
+
+  for (size_t i = 0; i < mid_bytes; i++) {
+    const size_t off = sidx_.first + 1ul;
+    const size_t boff = i << 3;
+
+    mid |= static_cast<uint32_t>(arr[off + i]) << boff;
+  }
+
+  const uint32_t res = msb | (mid << (8ul - sidx_.second)) | lsb;
+  return res;
+}
+
 // Boolean function `h(x)`, which takes 9 state variable bits ( for 8
 // consecutive cipher clocks ) & produces single bit ( for 8 consecutive cipher
 // clocks ), using formula
