@@ -73,6 +73,8 @@ split_bits(const uint8_t first, const uint8_t second)
 // generator registers with 128 -bit key and 96 -bit nonce, by clocking the
 // cipher (total) 512 times
 //
+// Note, 32 consecutive clocks are executed in parallel !
+//
 // See section 2.2 of Grain-128 AEAD specification
 // https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
 static void
@@ -87,54 +89,72 @@ initialize(grain_128::state_t* const __restrict st, // Grain-128 AEAD state
   std::memcpy(st->lfsr, nonce, 12);
   std::memcpy(st->lfsr + 12, lfsr32, 4);
 
-  for (size_t t = 0; t < 40; t++) {
-    const uint8_t yt = grain_128::ksb(st);
+  for (size_t t = 0; t < 10; t++) {
+    const uint32_t yt = grain_128::ksbx32(st);
 
-    const uint8_t s120 = grain_128::l(st);
-    const uint8_t b120 = grain_128::f(st);
+    const uint32_t s96 = grain_128::lx32(st);
+    const uint32_t b96 = grain_128::fx32(st);
 
-    grain_128::update_lfsr(st, s120 ^ yt);
-    grain_128::update_nfsr(st, b120 ^ yt);
+    grain_128::update_lfsrx32(st, s96 ^ yt);
+    grain_128::update_nfsrx32(st, b96 ^ yt);
   }
 
-  for (size_t t = 0; t < 8; t++) {
-    const size_t ta = t + 8;
-    const size_t tb = t;
+  for (size_t t = 0; t < 2; t++) {
+    const size_t toff = t << 2;
 
-    const uint8_t ka = key[ta];
-    const uint8_t kb = key[tb];
+    const size_t ta = toff + 8;
+    const size_t tb = toff + 0;
 
-    const uint8_t yt = grain_128::ksb(st);
+    const uint32_t ka = static_cast<uint32_t>(key[ta ^ 3] << 24) |
+                        static_cast<uint32_t>(key[ta ^ 2] << 16) |
+                        static_cast<uint32_t>(key[ta ^ 1] << 8) |
+                        static_cast<uint32_t>(key[ta ^ 0] << 0);
+    const uint32_t kb = static_cast<uint32_t>(key[tb ^ 3] << 24) |
+                        static_cast<uint32_t>(key[tb ^ 2] << 16) |
+                        static_cast<uint32_t>(key[tb ^ 1] << 8) |
+                        static_cast<uint32_t>(key[tb ^ 0] << 0);
 
-    const uint8_t s120 = grain_128::l(st);
-    const uint8_t b120 = grain_128::f(st);
+    const uint32_t yt = grain_128::ksbx32(st);
 
-    grain_128::update_lfsr(st, s120 ^ yt ^ ka);
-    grain_128::update_nfsr(st, b120 ^ yt ^ kb);
+    const uint32_t s96 = grain_128::lx32(st);
+    const uint32_t b96 = grain_128::fx32(st);
+
+    grain_128::update_lfsrx32(st, s96 ^ yt ^ ka);
+    grain_128::update_nfsrx32(st, b96 ^ yt ^ kb);
   }
 
-  for (size_t t = 0; t < 8; t++) {
-    const uint8_t yt = grain_128::ksb(st);
+  for (size_t t = 0; t < 2; t++) {
+    const uint32_t yt = grain_128::ksbx32(st);
 
-    st->acc[t] = yt;
+    const size_t toff = t << 2;
 
-    const uint8_t s120 = grain_128::l(st);
-    const uint8_t b120 = grain_128::f(st);
+    st->acc[toff ^ 0] = static_cast<uint8_t>(yt >> 0);
+    st->acc[toff ^ 1] = static_cast<uint8_t>(yt >> 8);
+    st->acc[toff ^ 2] = static_cast<uint8_t>(yt >> 16);
+    st->acc[toff ^ 3] = static_cast<uint8_t>(yt >> 24);
 
-    grain_128::update_lfsr(st, s120);
-    grain_128::update_nfsr(st, b120);
+    const uint32_t s96 = grain_128::lx32(st);
+    const uint32_t b96 = grain_128::fx32(st);
+
+    grain_128::update_lfsrx32(st, s96);
+    grain_128::update_nfsrx32(st, b96);
   }
 
-  for (size_t t = 0; t < 8; t++) {
-    const uint8_t yt = grain_128::ksb(st);
+  for (size_t t = 0; t < 2; t++) {
+    const uint32_t yt = grain_128::ksbx32(st);
 
-    st->sreg[t] = yt;
+    const size_t toff = t << 2;
 
-    const uint8_t s120 = grain_128::l(st);
-    const uint8_t b120 = grain_128::f(st);
+    st->sreg[toff ^ 0] = static_cast<uint8_t>(yt >> 0);
+    st->sreg[toff ^ 1] = static_cast<uint8_t>(yt >> 8);
+    st->sreg[toff ^ 2] = static_cast<uint8_t>(yt >> 16);
+    st->sreg[toff ^ 3] = static_cast<uint8_t>(yt >> 24);
 
-    grain_128::update_lfsr(st, s120);
-    grain_128::update_nfsr(st, b120);
+    const uint32_t s96 = grain_128::lx32(st);
+    const uint32_t b96 = grain_128::fx32(st);
+
+    grain_128::update_lfsrx32(st, s96);
+    grain_128::update_nfsrx32(st, b96);
   }
 }
 
