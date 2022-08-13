@@ -243,6 +243,25 @@ l(const state_t* const st)
   return s120;
 }
 
+// L(St) --- update function of LFSR, computing 32 bits of LFSR ( starting from
+// bit index 96 ), for next 32 cipher clock rounds, in parallel
+//
+// See definition in page 7 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+inline static uint32_t
+lx32(const state_t* const st)
+{
+  const uint32_t s0 = get_32bits(st->lfsr, 0);
+  const uint32_t s7 = get_32bits(st->lfsr, 7);
+  const uint32_t s38 = get_32bits(st->lfsr, 38);
+  const uint32_t s70 = get_32bits(st->lfsr, 70);
+  const uint32_t s81 = get_32bits(st->lfsr, 81);
+  const uint32_t s96 = get_32bits(st->lfsr, 96);
+
+  const uint32_t s120 = s0 ^ s7 ^ s38 ^ s70 ^ s81 ^ s96;
+  return s120;
+}
+
 // s0 + F(Bt) --- update function of NFSR, computing 8 bits of NFSR ( starting
 // from bit index 120 ), for next eight cipher clock rounds
 //
