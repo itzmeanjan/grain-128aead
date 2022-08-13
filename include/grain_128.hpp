@@ -239,8 +239,8 @@ l(const state_t* const st)
   const uint8_t s81 = get_8bits(st->lfsr, 81);
   const uint8_t s96 = get_8bits(st->lfsr, 96);
 
-  const uint8_t s120 = s0 ^ s7 ^ s38 ^ s70 ^ s81 ^ s96;
-  return s120;
+  const uint8_t res = s0 ^ s7 ^ s38 ^ s70 ^ s81 ^ s96;
+  return res;
 }
 
 // L(St) --- update function of LFSR, computing 32 bits of LFSR ( starting from
@@ -258,8 +258,8 @@ lx32(const state_t* const st)
   const uint32_t s81 = get_32bits(st->lfsr, 81);
   const uint32_t s96 = get_32bits(st->lfsr, 96);
 
-  const uint32_t s120 = s0 ^ s7 ^ s38 ^ s70 ^ s81 ^ s96;
-  return s120;
+  const uint32_t res = s0 ^ s7 ^ s38 ^ s70 ^ s81 ^ s96;
+  return res;
 }
 
 // s0 + F(Bt) --- update function of NFSR, computing 8 bits of NFSR ( starting
@@ -325,8 +325,75 @@ f(const state_t* const st)
   const uint8_t t10 = b88 & b92 & b93 & b95;
 
   const uint8_t fbt = t0 ^ t1 ^ t2 ^ t3 ^ t4 ^ t5 ^ t6 ^ t7 ^ t8 ^ t9 ^ t10;
-  const uint8_t b120 = s0 ^ fbt;
-  return b120;
+  const uint8_t res = s0 ^ fbt;
+  return res;
+}
+
+// s0 + F(Bt) --- update function of NFSR, computing 32 bits of NFSR ( starting
+// from bit index 96 ), for next 32 cipher clock rounds, in parallel
+//
+// See definition in page 7 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+inline static uint32_t
+fx32(const state_t* const st)
+{
+  const uint32_t s0 = get_32bits(st->lfsr, 0);
+
+  const uint32_t b0 = get_32bits(st->nfsr, 0);
+  const uint32_t b26 = get_32bits(st->nfsr, 26);
+  const uint32_t b56 = get_32bits(st->nfsr, 56);
+  const uint32_t b91 = get_32bits(st->nfsr, 91);
+  const uint32_t b96 = get_32bits(st->nfsr, 96);
+
+  const uint32_t b3 = get_32bits(st->nfsr, 3);
+  const uint32_t b67 = get_32bits(st->nfsr, 67);
+
+  const uint32_t b11 = get_32bits(st->nfsr, 11);
+  const uint32_t b13 = get_32bits(st->nfsr, 13);
+
+  const uint32_t b17 = get_32bits(st->nfsr, 17);
+  const uint32_t b18 = get_32bits(st->nfsr, 18);
+
+  const uint32_t b27 = get_32bits(st->nfsr, 27);
+  const uint32_t b59 = get_32bits(st->nfsr, 59);
+
+  const uint32_t b40 = get_32bits(st->nfsr, 40);
+  const uint32_t b48 = get_32bits(st->nfsr, 48);
+
+  const uint32_t b61 = get_32bits(st->nfsr, 61);
+  const uint32_t b65 = get_32bits(st->nfsr, 65);
+
+  const uint32_t b68 = get_32bits(st->nfsr, 68);
+  const uint32_t b84 = get_32bits(st->nfsr, 84);
+
+  const uint32_t b22 = get_32bits(st->nfsr, 22);
+  const uint32_t b24 = get_32bits(st->nfsr, 24);
+  const uint32_t b25 = get_32bits(st->nfsr, 25);
+
+  const uint32_t b70 = get_32bits(st->nfsr, 70);
+  const uint32_t b78 = get_32bits(st->nfsr, 78);
+  const uint32_t b82 = get_32bits(st->nfsr, 82);
+
+  const uint32_t b88 = get_32bits(st->nfsr, 88);
+  const uint32_t b92 = get_32bits(st->nfsr, 92);
+  const uint32_t b93 = get_32bits(st->nfsr, 93);
+  const uint32_t b95 = get_32bits(st->nfsr, 95);
+
+  const uint32_t t0 = b0 ^ b26 ^ b56 ^ b91 ^ b96;
+  const uint32_t t1 = b3 & b67;
+  const uint32_t t2 = b11 & b13;
+  const uint32_t t3 = b17 & b18;
+  const uint32_t t4 = b27 & b59;
+  const uint32_t t5 = b40 & b48;
+  const uint32_t t6 = b61 & b65;
+  const uint32_t t7 = b68 & b84;
+  const uint32_t t8 = b22 & b24 & b25;
+  const uint32_t t9 = b70 & b78 & b82;
+  const uint32_t t10 = b88 & b92 & b93 & b95;
+
+  const uint32_t fbt = t0 ^ t1 ^ t2 ^ t3 ^ t4 ^ t5 ^ t6 ^ t7 ^ t8 ^ t9 ^ t10;
+  const uint32_t res = s0 ^ fbt;
+  return res;
 }
 
 // Updates 128 -bit register by dropping bit [0..8) & setting new bit [120..128)
