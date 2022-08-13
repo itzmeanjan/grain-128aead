@@ -105,14 +105,21 @@ initialize(grain_128::state_t* const __restrict st, // Grain-128 AEAD state
     const size_t ta = toff + 8;
     const size_t tb = toff + 0;
 
-    const uint32_t ka = static_cast<uint32_t>(key[ta ^ 3] << 24) |
-                        static_cast<uint32_t>(key[ta ^ 2] << 16) |
-                        static_cast<uint32_t>(key[ta ^ 1] << 8) |
-                        static_cast<uint32_t>(key[ta ^ 0] << 0);
-    const uint32_t kb = static_cast<uint32_t>(key[tb ^ 3] << 24) |
-                        static_cast<uint32_t>(key[tb ^ 2] << 16) |
-                        static_cast<uint32_t>(key[tb ^ 1] << 8) |
-                        static_cast<uint32_t>(key[tb ^ 0] << 0);
+    uint32_t ka, kb;
+
+    if (std::endian::native == std::endian::little) {
+      std::memcpy(&ka, key + ta, 4);
+      std::memcpy(&kb, key + tb, 4);
+    } else {
+      ka = static_cast<uint32_t>(key[ta ^ 3] << 24) |
+           static_cast<uint32_t>(key[ta ^ 2] << 16) |
+           static_cast<uint32_t>(key[ta ^ 1] << 8) |
+           static_cast<uint32_t>(key[ta ^ 0] << 0);
+      kb = static_cast<uint32_t>(key[tb ^ 3] << 24) |
+           static_cast<uint32_t>(key[tb ^ 2] << 16) |
+           static_cast<uint32_t>(key[tb ^ 1] << 8) |
+           static_cast<uint32_t>(key[tb ^ 0] << 0);
+    }
 
     const uint32_t yt = grain_128::ksbx32(st);
 
@@ -128,10 +135,14 @@ initialize(grain_128::state_t* const __restrict st, // Grain-128 AEAD state
 
     const size_t toff = t << 2;
 
-    st->acc[toff ^ 0] = static_cast<uint8_t>(yt >> 0);
-    st->acc[toff ^ 1] = static_cast<uint8_t>(yt >> 8);
-    st->acc[toff ^ 2] = static_cast<uint8_t>(yt >> 16);
-    st->acc[toff ^ 3] = static_cast<uint8_t>(yt >> 24);
+    if constexpr (std::endian::native == std::endian::little) {
+      std::memcpy(st->acc + toff, &yt, 4);
+    } else {
+      st->acc[toff ^ 0] = static_cast<uint8_t>(yt >> 0);
+      st->acc[toff ^ 1] = static_cast<uint8_t>(yt >> 8);
+      st->acc[toff ^ 2] = static_cast<uint8_t>(yt >> 16);
+      st->acc[toff ^ 3] = static_cast<uint8_t>(yt >> 24);
+    }
 
     const uint32_t s96 = grain_128::lx32(st);
     const uint32_t b96 = grain_128::fx32(st);
@@ -145,10 +156,14 @@ initialize(grain_128::state_t* const __restrict st, // Grain-128 AEAD state
 
     const size_t toff = t << 2;
 
-    st->sreg[toff ^ 0] = static_cast<uint8_t>(yt >> 0);
-    st->sreg[toff ^ 1] = static_cast<uint8_t>(yt >> 8);
-    st->sreg[toff ^ 2] = static_cast<uint8_t>(yt >> 16);
-    st->sreg[toff ^ 3] = static_cast<uint8_t>(yt >> 24);
+    if constexpr (std::endian::native == std::endian::little) {
+      std::memcpy(st->sreg + toff, &yt, 4);
+    } else {
+      st->sreg[toff ^ 0] = static_cast<uint8_t>(yt >> 0);
+      st->sreg[toff ^ 1] = static_cast<uint8_t>(yt >> 8);
+      st->sreg[toff ^ 2] = static_cast<uint8_t>(yt >> 16);
+      st->sreg[toff ^ 3] = static_cast<uint8_t>(yt >> 24);
+    }
 
     const uint32_t s96 = grain_128::lx32(st);
     const uint32_t b96 = grain_128::fx32(st);

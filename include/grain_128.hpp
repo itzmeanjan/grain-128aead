@@ -63,7 +63,7 @@ get_8bits(const uint8_t* const arr, const size_t sidx)
 // Given a byte array and a starting bit index ( in that byte array ), this
 // routine extracts out 32 consecutive bits ( all indexing starts from 0 )
 // starting from provided bit index | end index is calculated as (sidx + 31)
-inline static constexpr uint32_t
+inline static uint32_t
 get_32bits(const uint8_t* const arr, const size_t sidx)
 {
   const size_t eidx = sidx + 31ul;
@@ -87,11 +87,15 @@ get_32bits(const uint8_t* const arr, const size_t sidx)
 
   uint32_t mid = 0u;
 
-  for (size_t i = 0; i < mbytes; i++) {
-    const size_t off = sidx_.first + 1ul;
-    const size_t boff = i << 3;
+  if constexpr (std::endian::native == std::endian::little) {
+    std::memcpy(&mid, arr + sidx_.first + 1ul, mbytes);
+  } else {
+    for (size_t i = 0; i < mbytes; i++) {
+      const size_t off = sidx_.first + 1ul;
+      const size_t boff = i << 3;
 
-    mid |= static_cast<uint32_t>(arr[off + i]) << boff;
+      mid |= static_cast<uint32_t>(arr[off + i]) << boff;
+    }
   }
 
   const uint32_t res = msb | (mid << lsb_cnt) | lsb;
@@ -435,10 +439,14 @@ updatex32(uint8_t* const reg,  // 128 -bit register to be updated
     reg[i] = reg[i + 4];
   }
 
-  reg[12] = static_cast<uint8_t>(bit96 >> 0);
-  reg[13] = static_cast<uint8_t>(bit96 >> 8);
-  reg[14] = static_cast<uint8_t>(bit96 >> 16);
-  reg[15] = static_cast<uint8_t>(bit96 >> 24);
+  if constexpr (std::endian::native == std::endian::little) {
+    std::memcpy(reg + 12, &bit96, 4);
+  } else {
+    reg[12] = static_cast<uint8_t>(bit96 >> 0);
+    reg[13] = static_cast<uint8_t>(bit96 >> 8);
+    reg[14] = static_cast<uint8_t>(bit96 >> 16);
+    reg[15] = static_cast<uint8_t>(bit96 >> 24);
+  }
 }
 
 // Updates LFSR, by shifting 128 -bit register by 8 -bits leftwards ( when least
