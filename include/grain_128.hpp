@@ -421,8 +421,8 @@ update(uint8_t* const reg,  // 128 -bit register to be updated
 // This generic function can be used for updating both 128 -bit LFSR and NFSR,
 // when executing 32 consecutive rounds of cipher clocks, in parallel
 inline static void
-update(uint8_t* const reg,  // 128 -bit register to be updated
-       const uint32_t bit96 // set bit [96..128) to this value
+updatex32(uint8_t* const reg,  // 128 -bit register to be updated
+          const uint32_t bit96 // set bit [96..128) to this value
 )
 {
   for (size_t i = 0; i < 12; i++) {
@@ -456,9 +456,9 @@ update_lfsr(state_t* const st, const uint8_t s120)
 // Use this routine, when executing 32 consecutive stream cipher clocks, in
 // parallel
 inline static void
-update_lfsr(state_t* const st, const uint32_t s96)
+update_lfsrx32(state_t* const st, const uint32_t s96)
 {
-  update(st->lfsr, s96);
+  updatex32(st->lfsr, s96);
 }
 
 // Updates NFSR, by shifting 128 -bit register by 8 -bits leftwards ( when least
@@ -482,9 +482,9 @@ update_nfsr(state_t* const st, const uint8_t b120)
 // Use this routine, when executing 32 consecutive stream cipher clocks, in
 // parallel
 inline static void
-update_nfsr(state_t* const st, const uint32_t b96)
+update_nfsrx32(state_t* const st, const uint32_t b96)
 {
-  update(st->nfsr, b96);
+  updatex32(st->nfsr, b96);
 }
 
 // Given a byte array of length 8, this routine interprets those bytes in little
