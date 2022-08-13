@@ -194,6 +194,36 @@ ksb(const state_t* const st)
   return yt;
 }
 
+// Pre-output generator function, producing 32 output (key stream) bits ( i.e.
+// invoking 32 consecutive rounds in parallel ), using formula
+//
+// yt = h(x) + st93 + ∑ j∈A (btj)
+//
+// A = {2, 15, 36, 45, 64, 73, 89}
+//
+// See definition in page 7 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+inline static uint32_t
+ksbx32(const state_t* const st)
+{
+  const uint32_t hx = hx32(st);
+
+  const uint32_t s93 = get_32bits(st->lfsr, 93);
+
+  const uint32_t b2 = get_32bits(st->nfsr, 2);
+  const uint32_t b15 = get_32bits(st->nfsr, 15);
+  const uint32_t b36 = get_32bits(st->nfsr, 36);
+  const uint32_t b45 = get_32bits(st->nfsr, 45);
+  const uint32_t b64 = get_32bits(st->nfsr, 64);
+  const uint32_t b73 = get_32bits(st->nfsr, 73);
+  const uint32_t b89 = get_32bits(st->nfsr, 89);
+
+  const uint32_t bt = b2 ^ b15 ^ b36 ^ b45 ^ b64 ^ b73 ^ b89;
+
+  const uint32_t yt = hx ^ s93 ^ bt;
+  return yt;
+}
+
 // L(St) --- update function of LFSR, computing 8 bits of LFSR ( starting from
 // bit index 120 ), for next eight cipher clock rounds
 //
