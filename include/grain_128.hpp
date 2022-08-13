@@ -400,7 +400,8 @@ fx32(const state_t* const st)
 // ( which is provided by parameter `bit120` ), while shifting other bits
 // leftwards ( i.e. MSB moving towards LSB ) | bit0 -> LSB and bit127 -> MSB
 //
-// This generic function can be used for updating both 128 -bit LFSR and NFSR
+// This generic function can be used for updating both 128 -bit LFSR and NFSR,
+// when executing 8 consecutive rounds of cipher clocks, in parallel
 inline static void
 update(uint8_t* const reg,  // 128 -bit register to be updated
        const uint8_t bit120 // set bit [120..128) to this value
@@ -413,24 +414,77 @@ update(uint8_t* const reg,  // 128 -bit register to be updated
   reg[15] = bit120;
 }
 
+// Updates 128 -bit register by dropping bit [0..32) & setting new bit [96..128)
+// ( which is provided by parameter `bit96` ), while shifting other bits
+// leftwards ( i.e. MSB moving towards LSB ) | bit0 -> LSB and bit127 -> MSB
+//
+// This generic function can be used for updating both 128 -bit LFSR and NFSR,
+// when executing 32 consecutive rounds of cipher clocks, in parallel
+inline static void
+update(uint8_t* const reg,  // 128 -bit register to be updated
+       const uint32_t bit96 // set bit [96..128) to this value
+)
+{
+  for (size_t i = 0; i < 12; i++) {
+    reg[i] = reg[i + 4];
+  }
+
+  reg[12] = static_cast<uint8_t>(bit96 >> 0);
+  reg[13] = static_cast<uint8_t>(bit96 >> 8);
+  reg[14] = static_cast<uint8_t>(bit96 >> 16);
+  reg[15] = static_cast<uint8_t>(bit96 >> 24);
+}
+
 // Updates LFSR, by shifting 128 -bit register by 8 -bits leftwards ( when least
 // significant bit lives on left side of the bit array i.e. bits [0..8) are
-// dropped & new bits [120..128) are placed ), while placing `s120` as
-// [120..128) -th bits of LFSR for next iteration
+// dropped ), while placing `s120` as [120..128) -th bits of LFSR for next
+// iteration
+//
+// Use this routine, when executing 8 consecutive stream cipher clocks, in
+// parallel
 inline static void
 update_lfsr(state_t* const st, const uint8_t s120)
 {
   update(st->lfsr, s120);
 }
 
+// Updates LFSR, by shifting 128 -bit register by 32 -bits leftwards ( when
+// least significant bit lives on left side of the bit array i.e. bits [0..32)
+// are dropped ), while placing `s96` as [96..128) -th bits of LFSR for next
+// iteration
+//
+// Use this routine, when executing 32 consecutive stream cipher clocks, in
+// parallel
+inline static void
+update_lfsr(state_t* const st, const uint32_t s96)
+{
+  update(st->lfsr, s96);
+}
+
 // Updates NFSR, by shifting 128 -bit register by 8 -bits leftwards ( when least
 // significant bit lives on left side of the bit array i.e. bits [0..8) are
-// dropped & new bits [120..128) are placed ), while placing `b120` as
-// [120..128) -th bits of NFSR for next iteration
+// dropped ), while placing `b120` as [120..128) -th bits of NFSR for next
+// iteration
+//
+// Use this routine, when executing 8 consecutive stream cipher clocks, in
+// parallel
 inline static void
 update_nfsr(state_t* const st, const uint8_t b120)
 {
   update(st->nfsr, b120);
+}
+
+// Updates NFSR, by shifting 128 -bit register by 32 -bits leftwards ( when
+// least significant bit lives on left side of the bit array i.e. bits [0..32)
+// are dropped ), while placing `b96` as [96..128) -th bits of NFSR for next
+// iteration
+//
+// Use this routine, when executing 32 consecutive stream cipher clocks, in
+// parallel
+inline static void
+update_nfsr(state_t* const st, const uint32_t b96)
+{
+  update(st->nfsr, b96);
 }
 
 // Given a byte array of length 8, this routine interprets those bytes in little
