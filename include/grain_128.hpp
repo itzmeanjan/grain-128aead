@@ -71,24 +71,30 @@ get_32bits(const uint8_t* const arr, const size_t sidx)
   const auto sidx_ = compute_index(sidx);
   const auto eidx_ = compute_index(eidx);
 
-  const uint8_t lo = arr[sidx_.first] >> sidx_.second;
-  const uint8_t hi = arr[eidx_.first] << (7ul - eidx_.second);
+  const size_t mbytes = eidx_.first - sidx_.first - 1ul;
 
-  const size_t mid_bytes = eidx_.first - sidx_.first + 1ul;
+  const size_t lsb_cnt = 8ul - sidx_.second;
+  const size_t mid_cnt = mbytes << 3;
+
+  const size_t hi_off = 7ul - eidx_.second;
+  const size_t msb_off = mid_cnt + lsb_cnt;
+
+  const uint8_t lo = arr[sidx_.first] >> sidx_.second;
+  const uint8_t hi = (arr[eidx_.first] << hi_off) >> hi_off;
 
   const uint32_t lsb = static_cast<uint32_t>(lo);
-  const uint32_t msb = static_cast<uint32_t>(hi) << (mid_bytes << 3);
+  const uint32_t msb = static_cast<uint32_t>(hi) << msb_off;
 
   uint32_t mid = 0u;
 
-  for (size_t i = 0; i < mid_bytes; i++) {
+  for (size_t i = 0; i < mbytes; i++) {
     const size_t off = sidx_.first + 1ul;
     const size_t boff = i << 3;
 
     mid |= static_cast<uint32_t>(arr[off + i]) << boff;
   }
 
-  const uint32_t res = msb | (mid << (8ul - sidx_.second)) | lsb;
+  const uint32_t res = msb | (mid << lsb_cnt) | lsb;
   return res;
 }
 
