@@ -60,6 +60,48 @@ get_8bits(const uint8_t* const arr, const size_t sidx)
   return bits;
 }
 
+// Given a byte array and a starting bit index ( in that byte array ), this
+// routine extracts out 32 consecutive bits ( all indexing starts from 0 )
+// starting from provided bit index | end index is calculated as (sidx + 31)
+inline static uint32_t
+get_32bits(const uint8_t* const arr, const size_t sidx)
+{
+  const size_t eidx = sidx + 31ul;
+
+  const auto sidx_ = compute_index(sidx);
+  const auto eidx_ = compute_index(eidx);
+
+  const size_t mbytes = eidx_.first - sidx_.first - 1ul;
+
+  const size_t lsb_cnt = 8ul - sidx_.second;
+  const size_t mid_cnt = mbytes << 3;
+
+  const size_t hi_off = 7ul - eidx_.second;
+  const size_t msb_off = mid_cnt + lsb_cnt;
+
+  const uint8_t lo = arr[sidx_.first] >> sidx_.second;
+  const uint8_t hi = (arr[eidx_.first] << hi_off) >> hi_off;
+
+  const uint32_t lsb = static_cast<uint32_t>(lo);
+  const uint32_t msb = static_cast<uint32_t>(hi) << msb_off;
+
+  uint32_t mid = 0u;
+
+  if constexpr (std::endian::native == std::endian::little) {
+    std::memcpy(&mid, arr + sidx_.first + 1ul, mbytes);
+  } else {
+    for (size_t i = 0; i < mbytes; i++) {
+      const size_t off = sidx_.first + 1ul;
+      const size_t boff = i << 3;
+
+      mid |= static_cast<uint32_t>(arr[off + i]) << boff;
+    }
+  }
+
+  const uint32_t res = msb | (mid << lsb_cnt) | lsb;
+  return res;
+}
+
 // Boolean function `h(x)`, which takes 9 state variable bits ( for 8
 // consecutive cipher clocks ) & produces single bit ( for 8 consecutive cipher
 // clocks ), using formula
@@ -73,9 +115,6 @@ get_8bits(const uint8_t* const arr, const size_t sidx)
 //
 // See definition of `h(x)` function in page 7 of Grain-128 AEAD specification
 // https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
-//
-// Note, this function should do what `h(...)` does, but for 8 consecutive
-// rounds i.e. processing 8 bits per function invocation.
 inline static uint8_t
 h(const state_t* const st)
 {
@@ -99,6 +138,42 @@ h(const state_t* const st)
   return hx;
 }
 
+// Boolean function `h(x)`, which takes 9 state variable bits ( for 32
+// consecutive cipher clocks ) & produces single bit ( for 32 consecutive cipher
+// clocks i.e. 32 bits are produced ), using formula
+//
+// h(x) = x0x1 + x2x3 + x4x5 + x6x7 + x0x4x8
+//
+// 2 of these input bits are from NFSR, while remaining 7 of them are from LFSR.
+//
+// Bits correspond to (x0, x1, ...x7, x8) -> (NFSR12, LFSR8, LFSR13, LFSR20,
+// NFSR95, LFSR42, LFSR60, LFSR79, LFSR94)
+//
+// See definition of `h(x)` function in page 7 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+inline static uint32_t
+hx32(const state_t* const st)
+{
+  const uint32_t x0 = get_32bits(st->nfsr, 12);
+  const uint32_t x1 = get_32bits(st->lfsr, 8);
+  const uint32_t x2 = get_32bits(st->lfsr, 13);
+  const uint32_t x3 = get_32bits(st->lfsr, 20);
+  const uint32_t x4 = get_32bits(st->nfsr, 95);
+  const uint32_t x5 = get_32bits(st->lfsr, 42);
+  const uint32_t x6 = get_32bits(st->lfsr, 60);
+  const uint32_t x7 = get_32bits(st->lfsr, 79);
+  const uint32_t x8 = get_32bits(st->lfsr, 94);
+
+  const uint32_t x0x1 = x0 & x1;
+  const uint32_t x2x3 = x2 & x3;
+  const uint32_t x4x5 = x4 & x5;
+  const uint32_t x6x7 = x6 & x7;
+  const uint32_t x0x4x8 = x0 & x4 & x8;
+
+  const uint32_t hx = x0x1 ^ x2x3 ^ x4x5 ^ x6x7 ^ x0x4x8;
+  return hx;
+}
+
 // Pre-output generator function, producing eight output (key stream) bits,
 // using formula
 //
@@ -108,9 +183,6 @@ h(const state_t* const st)
 //
 // See definition in page 7 of Grain-128 AEAD specification
 // https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
-//
-// Note, this function should do what `ksb(...)` does, but for 8 consecutive
-// rounds i.e. producing 8 key stream bits per function invocation.
 inline static uint8_t
 ksb(const state_t* const st)
 {
@@ -132,6 +204,36 @@ ksb(const state_t* const st)
   return yt;
 }
 
+// Pre-output generator function, producing 32 output (key stream) bits ( i.e.
+// invoking 32 consecutive rounds in parallel ), using formula
+//
+// yt = h(x) + st93 + ∑ j∈A (btj)
+//
+// A = {2, 15, 36, 45, 64, 73, 89}
+//
+// See definition in page 7 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+inline static uint32_t
+ksbx32(const state_t* const st)
+{
+  const uint32_t hx = hx32(st);
+
+  const uint32_t s93 = get_32bits(st->lfsr, 93);
+
+  const uint32_t b2 = get_32bits(st->nfsr, 2);
+  const uint32_t b15 = get_32bits(st->nfsr, 15);
+  const uint32_t b36 = get_32bits(st->nfsr, 36);
+  const uint32_t b45 = get_32bits(st->nfsr, 45);
+  const uint32_t b64 = get_32bits(st->nfsr, 64);
+  const uint32_t b73 = get_32bits(st->nfsr, 73);
+  const uint32_t b89 = get_32bits(st->nfsr, 89);
+
+  const uint32_t bt = b2 ^ b15 ^ b36 ^ b45 ^ b64 ^ b73 ^ b89;
+
+  const uint32_t yt = hx ^ s93 ^ bt;
+  return yt;
+}
+
 // L(St) --- update function of LFSR, computing 8 bits of LFSR ( starting from
 // bit index 120 ), for next eight cipher clock rounds
 //
@@ -147,8 +249,27 @@ l(const state_t* const st)
   const uint8_t s81 = get_8bits(st->lfsr, 81);
   const uint8_t s96 = get_8bits(st->lfsr, 96);
 
-  const uint8_t s120 = s0 ^ s7 ^ s38 ^ s70 ^ s81 ^ s96;
-  return s120;
+  const uint8_t res = s0 ^ s7 ^ s38 ^ s70 ^ s81 ^ s96;
+  return res;
+}
+
+// L(St) --- update function of LFSR, computing 32 bits of LFSR ( starting from
+// bit index 96 ), for next 32 cipher clock rounds, in parallel
+//
+// See definition in page 7 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+inline static uint32_t
+lx32(const state_t* const st)
+{
+  const uint32_t s0 = get_32bits(st->lfsr, 0);
+  const uint32_t s7 = get_32bits(st->lfsr, 7);
+  const uint32_t s38 = get_32bits(st->lfsr, 38);
+  const uint32_t s70 = get_32bits(st->lfsr, 70);
+  const uint32_t s81 = get_32bits(st->lfsr, 81);
+  const uint32_t s96 = get_32bits(st->lfsr, 96);
+
+  const uint32_t res = s0 ^ s7 ^ s38 ^ s70 ^ s81 ^ s96;
+  return res;
 }
 
 // s0 + F(Bt) --- update function of NFSR, computing 8 bits of NFSR ( starting
@@ -214,15 +335,83 @@ f(const state_t* const st)
   const uint8_t t10 = b88 & b92 & b93 & b95;
 
   const uint8_t fbt = t0 ^ t1 ^ t2 ^ t3 ^ t4 ^ t5 ^ t6 ^ t7 ^ t8 ^ t9 ^ t10;
-  const uint8_t b120 = s0 ^ fbt;
-  return b120;
+  const uint8_t res = s0 ^ fbt;
+  return res;
+}
+
+// s0 + F(Bt) --- update function of NFSR, computing 32 bits of NFSR ( starting
+// from bit index 96 ), for next 32 cipher clock rounds, in parallel
+//
+// See definition in page 7 of Grain-128 AEAD specification
+// https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+inline static uint32_t
+fx32(const state_t* const st)
+{
+  const uint32_t s0 = get_32bits(st->lfsr, 0);
+
+  const uint32_t b0 = get_32bits(st->nfsr, 0);
+  const uint32_t b26 = get_32bits(st->nfsr, 26);
+  const uint32_t b56 = get_32bits(st->nfsr, 56);
+  const uint32_t b91 = get_32bits(st->nfsr, 91);
+  const uint32_t b96 = get_32bits(st->nfsr, 96);
+
+  const uint32_t b3 = get_32bits(st->nfsr, 3);
+  const uint32_t b67 = get_32bits(st->nfsr, 67);
+
+  const uint32_t b11 = get_32bits(st->nfsr, 11);
+  const uint32_t b13 = get_32bits(st->nfsr, 13);
+
+  const uint32_t b17 = get_32bits(st->nfsr, 17);
+  const uint32_t b18 = get_32bits(st->nfsr, 18);
+
+  const uint32_t b27 = get_32bits(st->nfsr, 27);
+  const uint32_t b59 = get_32bits(st->nfsr, 59);
+
+  const uint32_t b40 = get_32bits(st->nfsr, 40);
+  const uint32_t b48 = get_32bits(st->nfsr, 48);
+
+  const uint32_t b61 = get_32bits(st->nfsr, 61);
+  const uint32_t b65 = get_32bits(st->nfsr, 65);
+
+  const uint32_t b68 = get_32bits(st->nfsr, 68);
+  const uint32_t b84 = get_32bits(st->nfsr, 84);
+
+  const uint32_t b22 = get_32bits(st->nfsr, 22);
+  const uint32_t b24 = get_32bits(st->nfsr, 24);
+  const uint32_t b25 = get_32bits(st->nfsr, 25);
+
+  const uint32_t b70 = get_32bits(st->nfsr, 70);
+  const uint32_t b78 = get_32bits(st->nfsr, 78);
+  const uint32_t b82 = get_32bits(st->nfsr, 82);
+
+  const uint32_t b88 = get_32bits(st->nfsr, 88);
+  const uint32_t b92 = get_32bits(st->nfsr, 92);
+  const uint32_t b93 = get_32bits(st->nfsr, 93);
+  const uint32_t b95 = get_32bits(st->nfsr, 95);
+
+  const uint32_t t0 = b0 ^ b26 ^ b56 ^ b91 ^ b96;
+  const uint32_t t1 = b3 & b67;
+  const uint32_t t2 = b11 & b13;
+  const uint32_t t3 = b17 & b18;
+  const uint32_t t4 = b27 & b59;
+  const uint32_t t5 = b40 & b48;
+  const uint32_t t6 = b61 & b65;
+  const uint32_t t7 = b68 & b84;
+  const uint32_t t8 = b22 & b24 & b25;
+  const uint32_t t9 = b70 & b78 & b82;
+  const uint32_t t10 = b88 & b92 & b93 & b95;
+
+  const uint32_t fbt = t0 ^ t1 ^ t2 ^ t3 ^ t4 ^ t5 ^ t6 ^ t7 ^ t8 ^ t9 ^ t10;
+  const uint32_t res = s0 ^ fbt;
+  return res;
 }
 
 // Updates 128 -bit register by dropping bit [0..8) & setting new bit [120..128)
 // ( which is provided by parameter `bit120` ), while shifting other bits
 // leftwards ( i.e. MSB moving towards LSB ) | bit0 -> LSB and bit127 -> MSB
 //
-// This generic function can be used for updating both 128 -bit LFSR and NFSR
+// This generic function can be used for updating both 128 -bit LFSR and NFSR,
+// when executing 8 consecutive rounds of cipher clocks, in parallel
 inline static void
 update(uint8_t* const reg,  // 128 -bit register to be updated
        const uint8_t bit120 // set bit [120..128) to this value
@@ -235,24 +424,81 @@ update(uint8_t* const reg,  // 128 -bit register to be updated
   reg[15] = bit120;
 }
 
+// Updates 128 -bit register by dropping bit [0..32) & setting new bit [96..128)
+// ( which is provided by parameter `bit96` ), while shifting other bits
+// leftwards ( i.e. MSB moving towards LSB ) | bit0 -> LSB and bit127 -> MSB
+//
+// This generic function can be used for updating both 128 -bit LFSR and NFSR,
+// when executing 32 consecutive rounds of cipher clocks, in parallel
+inline static void
+updatex32(uint8_t* const reg,  // 128 -bit register to be updated
+          const uint32_t bit96 // set bit [96..128) to this value
+)
+{
+  for (size_t i = 0; i < 12; i++) {
+    reg[i] = reg[i + 4];
+  }
+
+  if constexpr (std::endian::native == std::endian::little) {
+    std::memcpy(reg + 12, &bit96, 4);
+  } else {
+    reg[12] = static_cast<uint8_t>(bit96 >> 0);
+    reg[13] = static_cast<uint8_t>(bit96 >> 8);
+    reg[14] = static_cast<uint8_t>(bit96 >> 16);
+    reg[15] = static_cast<uint8_t>(bit96 >> 24);
+  }
+}
+
 // Updates LFSR, by shifting 128 -bit register by 8 -bits leftwards ( when least
 // significant bit lives on left side of the bit array i.e. bits [0..8) are
-// dropped & new bits [120..128) are placed ), while placing `s120` as
-// [120..128) -th bits of LFSR for next iteration
+// dropped ), while placing `s120` as [120..128) -th bits of LFSR for next
+// iteration
+//
+// Use this routine, when executing 8 consecutive stream cipher clocks, in
+// parallel
 inline static void
 update_lfsr(state_t* const st, const uint8_t s120)
 {
   update(st->lfsr, s120);
 }
 
+// Updates LFSR, by shifting 128 -bit register by 32 -bits leftwards ( when
+// least significant bit lives on left side of the bit array i.e. bits [0..32)
+// are dropped ), while placing `s96` as [96..128) -th bits of LFSR for next
+// iteration
+//
+// Use this routine, when executing 32 consecutive stream cipher clocks, in
+// parallel
+inline static void
+update_lfsrx32(state_t* const st, const uint32_t s96)
+{
+  updatex32(st->lfsr, s96);
+}
+
 // Updates NFSR, by shifting 128 -bit register by 8 -bits leftwards ( when least
 // significant bit lives on left side of the bit array i.e. bits [0..8) are
-// dropped & new bits [120..128) are placed ), while placing `b120` as
-// [120..128) -th bits of NFSR for next iteration
+// dropped ), while placing `b120` as [120..128) -th bits of NFSR for next
+// iteration
+//
+// Use this routine, when executing 8 consecutive stream cipher clocks, in
+// parallel
 inline static void
 update_nfsr(state_t* const st, const uint8_t b120)
 {
   update(st->nfsr, b120);
+}
+
+// Updates NFSR, by shifting 128 -bit register by 32 -bits leftwards ( when
+// least significant bit lives on left side of the bit array i.e. bits [0..32)
+// are dropped ), while placing `b96` as [96..128) -th bits of NFSR for next
+// iteration
+//
+// Use this routine, when executing 32 consecutive stream cipher clocks, in
+// parallel
+inline static void
+update_nfsrx32(state_t* const st, const uint32_t b96)
+{
+  updatex32(st->nfsr, b96);
 }
 
 // Given a byte array of length 8, this routine interprets those bytes in little
