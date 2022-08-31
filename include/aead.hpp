@@ -42,6 +42,58 @@ encode_der(const size_t dlen, // associated data length | >= 0 && < 2^64
   }
 }
 
+// Given a uint{8, 32}_t value, this routine extracts out even and odd indexed
+// bits from that number, returning a pair of uint{8, 32}_t, representing even
+// and odd halves living in LSB side ( lower part of T ), in order.
+//
+// Takes some inspiration from https://stackoverflow.com/a/4925461
+template<typename T>
+inline static const std::pair<T, T>
+deinterleave(const T v) requires(grain_128::check_auth_bit_width<T>())
+{
+  constexpr size_t blen = static_cast<size_t>(std::numeric_limits<T>::digits);
+
+  if constexpr (blen == 8ul) {
+    constexpr uint8_t msk0 = 0b10101010;
+    constexpr uint8_t msk1 = 0b01010101;
+
+    constexpr uint16_t msk2 = 0b0011001100110011;
+    constexpr uint16_t msk3 = 0b0000111100001111;
+
+    const uint16_t v0 = ((v & msk0) << 7) | (v & msk1);
+    const uint16_t v1 = ((v0 >> 1) | v0) & msk2;
+    const uint16_t v2 = ((v1 >> 2) | v1) & msk3;
+
+    const uint8_t even = static_cast<uint8_t>(v2);
+    const uint8_t odd = static_cast<uint8_t>(v2 >> 8);
+
+    return std::make_pair(even, odd);
+  } else if constexpr (blen == 32ul) {
+    constexpr uint32_t msk0 = 0b10101010101010101010101010101010u;
+    constexpr uint32_t msk1 = 0b01010101010101010101010101010101u;
+
+    // = 0b0011001100110011001100110011001100110011001100110011001100110011
+    constexpr uint64_t msk2 = 0x3333333333333333ul;
+    // = 0b0000111100001111000011110000111100001111000011110000111100001111
+    constexpr uint64_t msk3 = 0x0f0f0f0f0f0f0f0ful;
+    // = 0b0000000011111111000000001111111100000000111111110000000011111111
+    constexpr uint64_t msk4 = 0x00ff00ff00ff00fful;
+    // = 0b0000000000000000111111111111111100000000000000001111111111111111
+    constexpr uint64_t msk5 = 0x0000ffff0000fffful;
+
+    const uint64_t v0 = ((v & msk0) << 31) | (v & msk1);
+    const uint64_t v1 = ((v0 >> 1) | v0) & msk2;
+    const uint64_t v2 = ((v1 >> 2) | v1) & msk3;
+    const uint64_t v3 = ((v2 >> 4) | v2) & msk4;
+    const uint64_t v4 = ((v3 >> 8) | v3) & msk5;
+
+    const uint32_t even = static_cast<uint32_t>(v4);
+    const uint32_t odd = static_cast<uint32_t>(v4 >> 32);
+
+    return std::make_pair(even, odd);
+  }
+}
+
 // Given two 8/ 32 -bit unsigned integers, representing 16/ 64 key stream bits
 // produced by Grain-128 AEAD stream cipher ( in consecutive cipher clock cycles
 // ), this routine seperates out even and odd index bits
