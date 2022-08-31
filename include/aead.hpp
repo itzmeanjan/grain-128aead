@@ -215,7 +215,7 @@ auth_associated_data(
 
     const auto splitted = split_bits(yt0, yt1);
 
-    grain_128::authenticate_byte(st, der[i], splitted.second);
+    grain_128::authenticate<uint8_t>(st, der[i], splitted.second);
   }
 
   // Authenticate associated data bits
@@ -243,7 +243,7 @@ auth_associated_data(
 
     const auto splitted = split_bits(yt0, yt1);
 
-    grain_128::authenticate_byte(st, data[i], splitted.second);
+    grain_128::authenticate<uint8_t>(st, data[i], splitted.second);
   }
 }
 
@@ -283,8 +283,8 @@ enc_and_auth_txt(grain_128::state_t* const __restrict st,
 
     const auto splitted = split_bits(yt0, yt1);
 
-    enc[i] = txt[i] ^ splitted.first;                          // encrypt
-    grain_128::authenticate_byte(st, txt[i], splitted.second); // authenticate
+    enc[i] = txt[i] ^ splitted.first; // encrypt
+    grain_128::authenticate<uint8_t>(st, txt[i], splitted.second);
   }
 }
 
@@ -324,8 +324,8 @@ dec_and_auth_txt(grain_128::state_t* const __restrict st,
 
     const auto splitted = split_bits(yt0, yt1);
 
-    txt[i] = enc[i] ^ splitted.first;                          // decrypt
-    grain_128::authenticate_byte(st, txt[i], splitted.second); // authenticate
+    txt[i] = enc[i] ^ splitted.first; // decrypt
+    grain_128::authenticate<uint8_t>(st, txt[i], splitted.second);
   }
 }
 
@@ -363,7 +363,7 @@ auth_padding_bit(grain_128::state_t* const st)
 
   const auto splitted = split_bits(yt0, yt1);
 
-  grain_128::authenticate_byte(st, padding, splitted.second);
+  grain_128::authenticate<uint8_t>(st, padding, splitted.second);
 }
 
 }

@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <utility>
 
 // Grain-128 Authenticated Encryption with Associated Data
@@ -529,18 +530,28 @@ to_le_bytes(const uint64_t v, uint8_t* const bytes)
   }
 }
 
-// Updates Grain-128 AEAD accumulator & shift register, authenticating 8 input
-// message bits ( consuming into accumulator ), while also using eight
-// authentication bits ( eight consecutive odd bits produced by pre-output
-// generator i.e. `ksb` ) following definition provided in section 2.3 of
-// Grain-128 AEAD specification
+// Compile-time check that either 8 or 32 -bits are attempted to be
+// authenticated at a time.
+template<typename T>
+inline static constexpr bool
+check_auth_bit_width()
+{
+  constexpr int blen = std::numeric_limits<T>::digits;
+  return (blen == 8) || (blen == 32);
+}
+
+// Updates Grain-128 AEAD accumulator & shift register, authenticating 8/ 32
+// input message bits ( consuming into accumulator ), while also using
+// equal-many authentication bits ( 8/ 32 consecutive odd bits produced by
+// pre-output generator i.e. `ksb` ) following definition provided in
+// section 2.3 of Grain-128 AEAD specification
 // https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
+template<typename T>
 inline static void
-authenticate_byte(
-  state_t* const st, // Grain-128 AEAD cipher state
-  const uint8_t msg, // eight input message bits ( to be authenticated )
-  const uint8_t ksb  // eight odd pre-output generator bits ( auth bits )
-)
+authenticate(state_t* const st, // Grain-128 AEAD cipher state
+             const T msg, // 8/ 32 input message bits ( to be authenticated )
+             const T ksb  // 8/ 32 odd pre-output generator bits ( auth bits )
+             ) requires(check_auth_bit_width<T>())
 {
   uint64_t acc, sreg;
 
@@ -552,7 +563,9 @@ authenticate_byte(
     sreg = from_le_bytes(st->sreg);
   }
 
-  for (size_t i = 0; i < 8; i++) {
+  constexpr int blen = std::numeric_limits<T>::digits;
+
+  for (size_t i = 0; i < blen; i++) {
     const bool m = static_cast<bool>((msg >> i) & 0b1);
     const uint8_t k = (ksb >> i) & 0b1;
 
