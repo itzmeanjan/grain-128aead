@@ -1,6 +1,10 @@
 #pragma once
 #include "grain_128.hpp"
 
+#if defined __BMI2__
+#include <immintrin.h>
+#endif
+
 // Grain-128 Authenticated Encryption with Associated Data
 namespace aead {
 
@@ -61,6 +65,38 @@ split_bits(const T first,
   T odd = 0;
 
   constexpr int blen = std::numeric_limits<T>::digits;
+
+#if defined __BMI2__
+
+  if constexpr (blen == 32) {
+    constexpr uint32_t mask_even = 0b01010101010101010101010101010101u;
+    constexpr uint32_t mask_odd = mask_even << 1;
+
+    const uint32_t f_even = _pext_u32(first, mask_even);
+    const uint32_t f_odd = _pext_u32(first, mask_odd);
+
+    const uint32_t s_even = _pext_u32(second, mask_even);
+    const uint32_t s_odd = _pext_u32(second, mask_odd);
+
+    even = (s_even << 16) | f_even;
+    odd = (s_odd << 16) | f_odd;
+
+  } else if constexpr (blen == 8) {
+    constexpr uint32_t mask_even = 0b01010101u;
+    constexpr uint32_t mask_odd = mask_even << 1;
+
+    const uint32_t f_even = _pext_u32(static_cast<uint32_t>(first), mask_even);
+    const uint32_t f_odd = _pext_u32(static_cast<uint32_t>(first), mask_odd);
+
+    const uint32_t s_even = _pext_u32(static_cast<uint32_t>(second), mask_even);
+    const uint32_t s_odd = _pext_u32(static_cast<uint32_t>(second), mask_odd);
+
+    even = static_cast<T>((s_even << 4) | f_even);
+    odd = static_cast<T>((s_odd << 4) | f_odd);
+  }
+
+#else
+
   constexpr size_t hblen = static_cast<size_t>(blen) >> 1;
 
   for (size_t i = 0; i < hblen; i++) {
@@ -76,6 +112,8 @@ split_bits(const T first,
     odd |= ((first >> sboff_o) & 0b1) << dboff0;
     odd |= ((second >> sboff_o) & 0b1) << dboff1;
   }
+
+#endif
 
   return std::make_pair(even, odd);
 }
