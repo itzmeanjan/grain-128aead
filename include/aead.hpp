@@ -258,7 +258,7 @@ auth_associated_data(
   }
 }
 
-// Encrypts and authenticates plain text ( 8 bits at a time ), following
+// Encrypts and authenticates plain text ( 8/ 32 bits at a time ), following
 // specification defined in section 2.3, 2.5 & 2.6.1 of Grain-128 AEAD
 //
 // Find document
@@ -271,7 +271,62 @@ enc_and_auth_txt(grain_128::state_t* const __restrict st,
 {
   // Encrypt and authenticate plain text bits
 
-  for (size_t i = 0; i < ctlen; i++) {
+  const size_t word_cnt = ctlen >> 2;
+  const size_t rm_bytes = ctlen & 3ul;
+
+  for (size_t i = 0; i < word_cnt; i++) {
+    const size_t off = i << 2;
+
+    const uint32_t yt0 = grain_128::ksbx32(st);
+
+    {
+      const uint32_t s120 = grain_128::lx32(st);
+      const uint32_t b120 = grain_128::fx32(st);
+
+      grain_128::update_lfsrx32(st, s120);
+      grain_128::update_nfsrx32(st, b120);
+    }
+
+    const uint32_t yt1 = grain_128::ksbx32(st);
+
+    {
+      const uint32_t s120 = grain_128::lx32(st);
+      const uint32_t b120 = grain_128::fx32(st);
+
+      grain_128::update_lfsrx32(st, s120);
+      grain_128::update_nfsrx32(st, b120);
+    }
+
+    const auto splitted = split_bits<uint32_t>(yt0, yt1);
+
+    uint32_t txtw = 0u;
+
+    if constexpr (std::endian::native == std::endian::little) {
+      std::memcpy(&txtw, txt + off, 4);
+    } else {
+      txtw = static_cast<uint32_t>(txt[off ^ 3] << 24) |
+             static_cast<uint32_t>(txt[off ^ 2] << 16) |
+             static_cast<uint32_t>(txt[off ^ 1] << 8) |
+             static_cast<uint32_t>(txt[off ^ 0] << 0);
+    }
+
+    const uint32_t encw = txtw ^ splitted.first; // encrypt
+
+    if constexpr (std::endian::native == std::endian::little) {
+      std::memcpy(enc + off, &encw, 4);
+    } else {
+      enc[off ^ 0] = static_cast<uint8_t>(encw >> 0);
+      enc[off ^ 1] = static_cast<uint8_t>(encw >> 8);
+      enc[off ^ 2] = static_cast<uint8_t>(encw >> 16);
+      enc[off ^ 3] = static_cast<uint8_t>(encw >> 24);
+    }
+
+    grain_128::authenticate<uint32_t>(st, txtw, splitted.second);
+  }
+
+  const size_t off = word_cnt << 2;
+
+  for (size_t i = 0; i < rm_bytes; i++) {
     const uint8_t yt0 = grain_128::ksb(st);
 
     {
@@ -294,13 +349,14 @@ enc_and_auth_txt(grain_128::state_t* const __restrict st,
 
     const auto splitted = split_bits<uint8_t>(yt0, yt1);
 
-    enc[i] = txt[i] ^ splitted.first; // encrypt
-    grain_128::authenticate<uint8_t>(st, txt[i], splitted.second);
+    enc[off + i] = txt[off + i] ^ splitted.first; // encrypt
+    grain_128::authenticate<uint8_t>(st, txt[off + i], splitted.second);
   }
 }
 
-// Decrypts cipher text and authenticates decrypted text ( 8 bits at a time ),
-// following specification defined in section 2.3, 2.5 & 2.6.2 of Grain-128 AEAD
+// Decrypts cipher text and authenticates decrypted text ( 8/ 32 bits at a time
+// ), following specification defined in section 2.3, 2.5 & 2.6.2 of Grain-128
+// AEAD
 //
 // Find document
 // https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
@@ -312,7 +368,62 @@ dec_and_auth_txt(grain_128::state_t* const __restrict st,
 {
   // Decrypt cipher text and authenticate encrypted text bits
 
-  for (size_t i = 0; i < ctlen; i++) {
+  const size_t word_cnt = ctlen >> 2;
+  const size_t rm_bytes = ctlen & 3ul;
+
+  for (size_t i = 0; i < word_cnt; i++) {
+    const size_t off = i << 2;
+
+    const uint32_t yt0 = grain_128::ksbx32(st);
+
+    {
+      const uint32_t s120 = grain_128::lx32(st);
+      const uint32_t b120 = grain_128::fx32(st);
+
+      grain_128::update_lfsrx32(st, s120);
+      grain_128::update_nfsrx32(st, b120);
+    }
+
+    const uint32_t yt1 = grain_128::ksbx32(st);
+
+    {
+      const uint32_t s120 = grain_128::lx32(st);
+      const uint32_t b120 = grain_128::fx32(st);
+
+      grain_128::update_lfsrx32(st, s120);
+      grain_128::update_nfsrx32(st, b120);
+    }
+
+    const auto splitted = split_bits<uint32_t>(yt0, yt1);
+
+    uint32_t encw = 0u;
+
+    if constexpr (std::endian::native == std::endian::little) {
+      std::memcpy(&encw, enc + off, 4);
+    } else {
+      encw = static_cast<uint32_t>(enc[off ^ 3] << 24) |
+             static_cast<uint32_t>(enc[off ^ 2] << 16) |
+             static_cast<uint32_t>(enc[off ^ 1] << 8) |
+             static_cast<uint32_t>(enc[off ^ 0] << 0);
+    }
+
+    const uint32_t txtw = encw ^ splitted.first; // decrypt
+
+    if constexpr (std::endian::native == std::endian::little) {
+      std::memcpy(txt + off, &txtw, 4);
+    } else {
+      txt[off ^ 0] = static_cast<uint8_t>(txtw >> 0);
+      txt[off ^ 1] = static_cast<uint8_t>(txtw >> 8);
+      txt[off ^ 2] = static_cast<uint8_t>(txtw >> 16);
+      txt[off ^ 3] = static_cast<uint8_t>(txtw >> 24);
+    }
+
+    grain_128::authenticate<uint32_t>(st, txtw, splitted.second);
+  }
+
+  const size_t off = word_cnt << 2;
+
+  for (size_t i = 0; i < rm_bytes; i++) {
     const uint8_t yt0 = grain_128::ksb(st);
 
     {
@@ -335,8 +446,8 @@ dec_and_auth_txt(grain_128::state_t* const __restrict st,
 
     const auto splitted = split_bits<uint8_t>(yt0, yt1);
 
-    txt[i] = enc[i] ^ splitted.first; // decrypt
-    grain_128::authenticate<uint8_t>(st, txt[i], splitted.second);
+    txt[off + i] = enc[off + i] ^ splitted.first; // decrypt
+    grain_128::authenticate<uint8_t>(st, txt[off + i], splitted.second);
   }
 }
 
