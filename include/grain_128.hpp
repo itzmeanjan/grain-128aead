@@ -55,8 +55,8 @@ get_8bits(const uint8_t* const arr, const size_t sidx)
   const uint8_t lo = arr[sidx_.first] >> sidx_.second;
   const uint8_t hi = arr[eidx_.first] << (7ul - eidx_.second);
 
-  const bool flg = (sidx & 7ul) == 0ul;
-  const uint8_t bits = hi | (lo * !flg);
+  const bool flg = static_cast<bool>(sidx & 7ul);
+  const uint8_t bits = hi | (lo * flg);
 
   return bits;
 }
@@ -502,30 +502,55 @@ update_nfsrx32(state_t* const st, const uint32_t b96)
   updatex32(st->nfsr, b96);
 }
 
-// Given a byte array of length 8, this routine interprets those bytes in little
-// endian byte order, computing a 64 -bit unsigned integer
-inline static uint64_t
-from_le_bytes(const uint8_t* const bytes)
+// Compile-time check to ensure that only uint32_t or uint64_t can be converted
+// to and/ or from byte array of length 4 and 8, respectively.
+template<typename T>
+inline static constexpr bool
+check_type_bit_width()
 {
-  return (static_cast<uint64_t>(bytes[7]) << 56) |
-         (static_cast<uint64_t>(bytes[6]) << 48) |
-         (static_cast<uint64_t>(bytes[5]) << 40) |
-         (static_cast<uint64_t>(bytes[4]) << 32) |
-         (static_cast<uint64_t>(bytes[3]) << 24) |
-         (static_cast<uint64_t>(bytes[2]) << 16) |
-         (static_cast<uint64_t>(bytes[1]) << 8) |
-         (static_cast<uint64_t>(bytes[0]) << 0);
+  constexpr int blen = std::numeric_limits<T>::digits;
+  return (blen == 32) || (blen == 64);
 }
 
-// Given a 64 -bit unsigned integer & a byte array of length 8, this routine
-// interprets u64 in little endian byte order and places each of 8 bytes in
-// designated byte indices.
-inline static void
-to_le_bytes(const uint64_t v, uint8_t* const bytes)
+// Given a byte array of length 4/ 8, this routine interprets those bytes in
+// little endian byte order, computing a 32/ 64 -bit unsigned integer
+template<typename T>
+inline static T
+from_le_bytes(const uint8_t* const bytes) requires(check_type_bit_width<T>())
 {
-  for (size_t i = 0; i < 8; i++) {
-    const size_t boff = i << 3;
+  constexpr size_t blen = static_cast<size_t>(std::numeric_limits<T>::digits);
 
+  if constexpr (blen == 32ul) {
+    return (static_cast<uint32_t>(bytes[3]) << 24) |
+           (static_cast<uint32_t>(bytes[2]) << 16) |
+           (static_cast<uint32_t>(bytes[1]) << 8) |
+           (static_cast<uint32_t>(bytes[0]) << 0);
+  } else if constexpr (blen == 64ul) {
+    return (static_cast<uint64_t>(bytes[7]) << 56) |
+           (static_cast<uint64_t>(bytes[6]) << 48) |
+           (static_cast<uint64_t>(bytes[5]) << 40) |
+           (static_cast<uint64_t>(bytes[4]) << 32) |
+           (static_cast<uint64_t>(bytes[3]) << 24) |
+           (static_cast<uint64_t>(bytes[2]) << 16) |
+           (static_cast<uint64_t>(bytes[1]) << 8) |
+           (static_cast<uint64_t>(bytes[0]) << 0);
+  }
+}
+
+// Given a 32/ 64 -bit unsigned integer & a byte array of length 4/ 8, this
+// routine interprets u32/ u64 in little endian byte order and places each of 4/
+// 8 bytes in designated byte indices.
+template<typename T>
+inline static void
+to_le_bytes(const T v, uint8_t* const bytes) requires(check_type_bit_width<T>())
+{
+  constexpr size_t blen = static_cast<size_t>(std::numeric_limits<T>::digits);
+  static_assert((blen == 32) || (blen == 64), "Bit length of `T` ∈ {32, 64}");
+
+  constexpr size_t bcnt = sizeof(T);
+
+  for (size_t i = 0; i < bcnt; i++) {
+    const size_t boff = i << 3;
     bytes[i] = static_cast<uint8_t>(v >> boff);
   }
 }
@@ -559,8 +584,8 @@ authenticate(state_t* const st, // Grain-128 AEAD cipher state
     std::memcpy(&acc, st->acc, 8);
     std::memcpy(&sreg, st->sreg, 8);
   } else {
-    acc = from_le_bytes(st->acc);
-    sreg = from_le_bytes(st->sreg);
+    acc = from_le_bytes<uint64_t>(st->acc);
+    sreg = from_le_bytes<uint64_t>(st->sreg);
   }
 
   constexpr int blen = std::numeric_limits<T>::digits;
@@ -577,8 +602,8 @@ authenticate(state_t* const st, // Grain-128 AEAD cipher state
     std::memcpy(st->acc, &acc, 8);
     std::memcpy(st->sreg, &sreg, 8);
   } else {
-    to_le_bytes(acc, st->acc);
-    to_le_bytes(sreg, st->sreg);
+    to_le_bytes<uint64_t>(acc, st->acc);
+    to_le_bytes<uint64_t>(sreg, st->sreg);
   }
 }
 

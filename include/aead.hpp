@@ -160,14 +160,8 @@ initialize(grain_128::state_t* const __restrict st, // Grain-128 AEAD state
       std::memcpy(&ka, key + ta, 4);
       std::memcpy(&kb, key + tb, 4);
     } else {
-      ka = static_cast<uint32_t>(key[ta ^ 3] << 24) |
-           static_cast<uint32_t>(key[ta ^ 2] << 16) |
-           static_cast<uint32_t>(key[ta ^ 1] << 8) |
-           static_cast<uint32_t>(key[ta ^ 0] << 0);
-      kb = static_cast<uint32_t>(key[tb ^ 3] << 24) |
-           static_cast<uint32_t>(key[tb ^ 2] << 16) |
-           static_cast<uint32_t>(key[tb ^ 1] << 8) |
-           static_cast<uint32_t>(key[tb ^ 0] << 0);
+      ka = grain_128::from_le_bytes<uint32_t>(key + ta);
+      kb = grain_128::from_le_bytes<uint32_t>(key + tb);
     }
 
     const uint32_t yt = grain_128::ksbx32(st);
@@ -187,10 +181,7 @@ initialize(grain_128::state_t* const __restrict st, // Grain-128 AEAD state
     if constexpr (std::endian::native == std::endian::little) {
       std::memcpy(st->acc + toff, &yt, 4);
     } else {
-      st->acc[toff ^ 0] = static_cast<uint8_t>(yt >> 0);
-      st->acc[toff ^ 1] = static_cast<uint8_t>(yt >> 8);
-      st->acc[toff ^ 2] = static_cast<uint8_t>(yt >> 16);
-      st->acc[toff ^ 3] = static_cast<uint8_t>(yt >> 24);
+      grain_128::to_le_bytes<uint32_t>(yt, st->acc + toff);
     }
 
     const uint32_t s96 = grain_128::lx32(st);
@@ -208,10 +199,7 @@ initialize(grain_128::state_t* const __restrict st, // Grain-128 AEAD state
     if constexpr (std::endian::native == std::endian::little) {
       std::memcpy(st->sreg + toff, &yt, 4);
     } else {
-      st->sreg[toff ^ 0] = static_cast<uint8_t>(yt >> 0);
-      st->sreg[toff ^ 1] = static_cast<uint8_t>(yt >> 8);
-      st->sreg[toff ^ 2] = static_cast<uint8_t>(yt >> 16);
-      st->sreg[toff ^ 3] = static_cast<uint8_t>(yt >> 24);
+      grain_128::to_le_bytes<uint32_t>(yt, st->sreg + toff);
     }
 
     const uint32_t s96 = grain_128::lx32(st);
@@ -299,10 +287,7 @@ auth_associated_data(
     if constexpr (std::endian::native == std::endian::little) {
       std::memcpy(&dataw, data + off, 4);
     } else {
-      dataw = static_cast<uint32_t>(data[off ^ 3] << 24) |
-              static_cast<uint32_t>(data[off ^ 2] << 16) |
-              static_cast<uint32_t>(data[off ^ 1] << 8) |
-              static_cast<uint32_t>(data[off ^ 0] << 0);
+      dataw = grain_128::from_le_bytes<uint32_t>(data + off);
     }
 
     const auto splitted = split_bits<uint32_t>(yt0, yt1);
@@ -383,10 +368,7 @@ enc_and_auth_txt(grain_128::state_t* const __restrict st,
     if constexpr (std::endian::native == std::endian::little) {
       std::memcpy(&txtw, txt + off, 4);
     } else {
-      txtw = static_cast<uint32_t>(txt[off ^ 3] << 24) |
-             static_cast<uint32_t>(txt[off ^ 2] << 16) |
-             static_cast<uint32_t>(txt[off ^ 1] << 8) |
-             static_cast<uint32_t>(txt[off ^ 0] << 0);
+      txtw = grain_128::from_le_bytes<uint32_t>(txt + off);
     }
 
     const uint32_t encw = txtw ^ splitted.first; // encrypt
@@ -394,10 +376,7 @@ enc_and_auth_txt(grain_128::state_t* const __restrict st,
     if constexpr (std::endian::native == std::endian::little) {
       std::memcpy(enc + off, &encw, 4);
     } else {
-      enc[off ^ 0] = static_cast<uint8_t>(encw >> 0);
-      enc[off ^ 1] = static_cast<uint8_t>(encw >> 8);
-      enc[off ^ 2] = static_cast<uint8_t>(encw >> 16);
-      enc[off ^ 3] = static_cast<uint8_t>(encw >> 24);
+      grain_128::to_le_bytes<uint32_t>(encw, enc + off);
     }
 
     grain_128::authenticate<uint32_t>(st, txtw, splitted.second);
@@ -480,10 +459,7 @@ dec_and_auth_txt(grain_128::state_t* const __restrict st,
     if constexpr (std::endian::native == std::endian::little) {
       std::memcpy(&encw, enc + off, 4);
     } else {
-      encw = static_cast<uint32_t>(enc[off ^ 3] << 24) |
-             static_cast<uint32_t>(enc[off ^ 2] << 16) |
-             static_cast<uint32_t>(enc[off ^ 1] << 8) |
-             static_cast<uint32_t>(enc[off ^ 0] << 0);
+      encw = grain_128::from_le_bytes<uint32_t>(enc + off);
     }
 
     const uint32_t txtw = encw ^ splitted.first; // decrypt
@@ -491,10 +467,7 @@ dec_and_auth_txt(grain_128::state_t* const __restrict st,
     if constexpr (std::endian::native == std::endian::little) {
       std::memcpy(txt + off, &txtw, 4);
     } else {
-      txt[off ^ 0] = static_cast<uint8_t>(txtw >> 0);
-      txt[off ^ 1] = static_cast<uint8_t>(txtw >> 8);
-      txt[off ^ 2] = static_cast<uint8_t>(txtw >> 16);
-      txt[off ^ 3] = static_cast<uint8_t>(txtw >> 24);
+      grain_128::to_le_bytes<uint32_t>(txtw, txt + off);
     }
 
     grain_128::authenticate<uint32_t>(st, txtw, splitted.second);
