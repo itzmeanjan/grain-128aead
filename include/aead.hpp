@@ -184,8 +184,8 @@ initialize(grain_128::state_t* const __restrict st, // Grain-128 AEAD state
   }
 }
 
-// Authenticates associated data ( 8 bits at a time ), following specification
-// defined in section 2.3, 2.5 & 2.6.1 of Grain-128 AEAD
+// Authenticates associated data ( 8/ 32 bits at a time ), following
+// specification defined in section 2.3, 2.5 & 2.6.1 of Grain-128 AEAD
 //
 // Find document
 // https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-spec-doc/grain-128aead-spec-final.pdf
@@ -225,13 +225,55 @@ auth_associated_data(
     }
 
     const auto splitted = split_bits<uint8_t>(yt0, yt1);
-
     grain_128::authenticate<uint8_t>(st, der[i], splitted.second);
   }
 
   // Authenticate associated data bits
 
-  for (size_t i = 0; i < dlen; i++) {
+  const size_t word_cnt = dlen >> 2;
+  const size_t rm_bytes = dlen & 3ul;
+
+  for (size_t i = 0; i < word_cnt; i++) {
+    const size_t off = i << 2;
+
+    const uint32_t yt0 = grain_128::ksbx32(st);
+
+    {
+      const uint32_t s96 = grain_128::lx32(st);
+      const uint32_t b96 = grain_128::fx32(st);
+
+      grain_128::update_lfsrx32(st, s96);
+      grain_128::update_nfsrx32(st, b96);
+    }
+
+    const uint32_t yt1 = grain_128::ksbx32(st);
+
+    {
+      const uint32_t s96 = grain_128::lx32(st);
+      const uint32_t b96 = grain_128::fx32(st);
+
+      grain_128::update_lfsrx32(st, s96);
+      grain_128::update_nfsrx32(st, b96);
+    }
+
+    uint32_t dataw = 0u;
+
+    if constexpr (std::endian::native == std::endian::little) {
+      std::memcpy(&dataw, data + off, 4);
+    } else {
+      dataw = static_cast<uint32_t>(data[off ^ 3] << 24) |
+              static_cast<uint32_t>(data[off ^ 2] << 16) |
+              static_cast<uint32_t>(data[off ^ 1] << 8) |
+              static_cast<uint32_t>(data[off ^ 0] << 0);
+    }
+
+    const auto splitted = split_bits<uint32_t>(yt0, yt1);
+    grain_128::authenticate<uint32_t>(st, dataw, splitted.second);
+  }
+
+  const size_t off = word_cnt << 2;
+
+  for (size_t i = 0; i < rm_bytes; i++) {
     const uint8_t yt0 = grain_128::ksb(st);
 
     {
@@ -253,8 +295,7 @@ auth_associated_data(
     }
 
     const auto splitted = split_bits<uint8_t>(yt0, yt1);
-
-    grain_128::authenticate<uint8_t>(st, data[i], splitted.second);
+    grain_128::authenticate<uint8_t>(st, data[off + i], splitted.second);
   }
 }
 
@@ -280,21 +321,21 @@ enc_and_auth_txt(grain_128::state_t* const __restrict st,
     const uint32_t yt0 = grain_128::ksbx32(st);
 
     {
-      const uint32_t s120 = grain_128::lx32(st);
-      const uint32_t b120 = grain_128::fx32(st);
+      const uint32_t s96 = grain_128::lx32(st);
+      const uint32_t b96 = grain_128::fx32(st);
 
-      grain_128::update_lfsrx32(st, s120);
-      grain_128::update_nfsrx32(st, b120);
+      grain_128::update_lfsrx32(st, s96);
+      grain_128::update_nfsrx32(st, b96);
     }
 
     const uint32_t yt1 = grain_128::ksbx32(st);
 
     {
-      const uint32_t s120 = grain_128::lx32(st);
-      const uint32_t b120 = grain_128::fx32(st);
+      const uint32_t s96 = grain_128::lx32(st);
+      const uint32_t b96 = grain_128::fx32(st);
 
-      grain_128::update_lfsrx32(st, s120);
-      grain_128::update_nfsrx32(st, b120);
+      grain_128::update_lfsrx32(st, s96);
+      grain_128::update_nfsrx32(st, b96);
     }
 
     const auto splitted = split_bits<uint32_t>(yt0, yt1);
@@ -377,21 +418,21 @@ dec_and_auth_txt(grain_128::state_t* const __restrict st,
     const uint32_t yt0 = grain_128::ksbx32(st);
 
     {
-      const uint32_t s120 = grain_128::lx32(st);
-      const uint32_t b120 = grain_128::fx32(st);
+      const uint32_t s96 = grain_128::lx32(st);
+      const uint32_t b96 = grain_128::fx32(st);
 
-      grain_128::update_lfsrx32(st, s120);
-      grain_128::update_nfsrx32(st, b120);
+      grain_128::update_lfsrx32(st, s96);
+      grain_128::update_nfsrx32(st, b96);
     }
 
     const uint32_t yt1 = grain_128::ksbx32(st);
 
     {
-      const uint32_t s120 = grain_128::lx32(st);
-      const uint32_t b120 = grain_128::fx32(st);
+      const uint32_t s96 = grain_128::lx32(st);
+      const uint32_t b96 = grain_128::fx32(st);
 
-      grain_128::update_lfsrx32(st, s120);
-      grain_128::update_nfsrx32(st, b120);
+      grain_128::update_lfsrx32(st, s96);
+      grain_128::update_nfsrx32(st, b96);
     }
 
     const auto splitted = split_bits<uint32_t>(yt0, yt1);
@@ -484,7 +525,6 @@ auth_padding_bit(grain_128::state_t* const st)
   }
 
   const auto splitted = split_bits<uint8_t>(yt0, yt1);
-
   grain_128::authenticate<uint8_t>(st, padding, splitted.second);
 }
 
