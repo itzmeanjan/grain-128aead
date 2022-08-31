@@ -531,7 +531,7 @@ to_le_bytes(const uint64_t v, uint8_t* const bytes)
 }
 
 // Compile-time check that either 8 or 32 -bits are attempted to be
-// authenticated at a time.
+// encrypted/ authenticated at a time.
 template<typename T>
 inline static constexpr bool
 check_auth_bit_width()

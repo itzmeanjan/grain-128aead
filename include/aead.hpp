@@ -38,26 +38,37 @@ encode_der(const size_t dlen, // associated data length | >= 0 && < 2^64
   }
 }
 
-// Given two 8 -bit unsigned integers, representing 16 key stream bits produced
-// by Grain-128 AEAD stream cipher ( in consecutive cipher clock cycles ), this
-// routine seperates out even and odd index bits
+// Given two 8/ 32 -bit unsigned integers, representing 16/ 64 key stream bits
+// produced by Grain-128 AEAD stream cipher ( in consecutive cipher clock cycles
+// ), this routine seperates out even and odd index bits
 //
-// Note, first -> [b7, b6, b5, b4, b3, b2, b1, b0]
-//     second -> [b15, b14, b13, b12, b11, b10, b9, b8]
+// first -> [b7, b6, b5, b4, b3, b2, b1, b0]
+// second -> [b15, b14, b13, b12, b11, b10, b9, b8] | when template parameter T
+// = uint8_t
 //
-// Returned byte pair looks like (even_bits, odd_bits)
-static const std::pair<uint8_t, uint8_t>
-split_bits(const uint8_t first, const uint8_t second)
+// or
+//
+// first -> [b31, b30, ..., b1, b0]
+// second -> [b63, b62, ..., b33, b32] | when template parameter T = uint32_t
+//
+// Returned byte pair looks like (even_{8, 32}_bits, odd_{8, 32}_bits)
+template<typename T>
+static const std::pair<T, T>
+split_bits(const T first,
+           const T second) requires(grain_128::check_auth_bit_width<T>())
 {
-  uint8_t even = 0;
-  uint8_t odd = 0;
+  T even = 0;
+  T odd = 0;
 
-  for (size_t i = 0; i < 4; i++) {
+  constexpr int blen = std::numeric_limits<T>::digits;
+  constexpr size_t hblen = static_cast<size_t>(blen) >> 1;
+
+  for (size_t i = 0; i < hblen; i++) {
     const size_t sboff_e = i << 1;
     const size_t sboff_o = sboff_e ^ 1;
 
     const size_t dboff0 = i;
-    const size_t dboff1 = i + 4ul;
+    const size_t dboff1 = i + hblen;
 
     even |= ((first >> sboff_e) & 0b1) << dboff0;
     even |= ((second >> sboff_e) & 0b1) << dboff1;
@@ -213,7 +224,7 @@ auth_associated_data(
       grain_128::update_nfsr(st, b120);
     }
 
-    const auto splitted = split_bits(yt0, yt1);
+    const auto splitted = split_bits<uint8_t>(yt0, yt1);
 
     grain_128::authenticate<uint8_t>(st, der[i], splitted.second);
   }
@@ -241,7 +252,7 @@ auth_associated_data(
       grain_128::update_nfsr(st, b120);
     }
 
-    const auto splitted = split_bits(yt0, yt1);
+    const auto splitted = split_bits<uint8_t>(yt0, yt1);
 
     grain_128::authenticate<uint8_t>(st, data[i], splitted.second);
   }
@@ -281,7 +292,7 @@ enc_and_auth_txt(grain_128::state_t* const __restrict st,
       grain_128::update_nfsr(st, b120);
     }
 
-    const auto splitted = split_bits(yt0, yt1);
+    const auto splitted = split_bits<uint8_t>(yt0, yt1);
 
     enc[i] = txt[i] ^ splitted.first; // encrypt
     grain_128::authenticate<uint8_t>(st, txt[i], splitted.second);
@@ -322,7 +333,7 @@ dec_and_auth_txt(grain_128::state_t* const __restrict st,
       grain_128::update_nfsr(st, b120);
     }
 
-    const auto splitted = split_bits(yt0, yt1);
+    const auto splitted = split_bits<uint8_t>(yt0, yt1);
 
     txt[i] = enc[i] ^ splitted.first; // decrypt
     grain_128::authenticate<uint8_t>(st, txt[i], splitted.second);
@@ -361,7 +372,7 @@ auth_padding_bit(grain_128::state_t* const st)
     grain_128::update_nfsr(st, b120);
   }
 
-  const auto splitted = split_bits(yt0, yt1);
+  const auto splitted = split_bits<uint8_t>(yt0, yt1);
 
   grain_128::authenticate<uint8_t>(st, padding, splitted.second);
 }
