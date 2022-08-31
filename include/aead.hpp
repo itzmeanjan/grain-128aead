@@ -54,23 +54,26 @@ deinterleave(const T v) requires(grain_128::check_auth_bit_width<T>())
   constexpr size_t blen = static_cast<size_t>(std::numeric_limits<T>::digits);
 
   if constexpr (blen == 8ul) {
-    constexpr uint8_t msk0 = 0b10101010;
-    constexpr uint8_t msk1 = 0b01010101;
+    constexpr uint16_t msk0 = 0b0000000010101010;
+    constexpr uint16_t msk1 = 0b0000000001010101;
 
     constexpr uint16_t msk2 = 0b0011001100110011;
     constexpr uint16_t msk3 = 0b0000111100001111;
 
-    const uint16_t v0 = ((v & msk0) << 7) | (v & msk1);
-    const uint16_t v1 = ((v0 >> 1) | v0) & msk2;
-    const uint16_t v2 = ((v1 >> 2) | v1) & msk3;
+    const uint16_t v0 = static_cast<uint16_t>(v);
+    const uint16_t v1 = ((v0 & msk0) << 7) | (v0 & msk1);
+    const uint16_t v2 = ((v1 >> 1) | v1) & msk2;
+    const uint16_t v3 = ((v2 >> 2) | v2) & msk3;
 
-    const uint8_t even = static_cast<uint8_t>(v2);
-    const uint8_t odd = static_cast<uint8_t>(v2 >> 8);
+    const uint8_t even = static_cast<uint8_t>(v3);
+    const uint8_t odd = static_cast<uint8_t>(v3 >> 8);
 
     return std::make_pair(even, odd);
   } else if constexpr (blen == 32ul) {
-    constexpr uint32_t msk0 = 0b10101010101010101010101010101010u;
-    constexpr uint32_t msk1 = 0b01010101010101010101010101010101u;
+    // = 0b0000000000000000000000000000000010101010101010101010101010101010
+    constexpr uint64_t msk0 = 0x00000000aaaaaaaaul;
+    // = 0b0000000000000000000000000000000001010101010101010101010101010101
+    constexpr uint64_t msk1 = 0x0000000055555555ul;
 
     // = 0b0011001100110011001100110011001100110011001100110011001100110011
     constexpr uint64_t msk2 = 0x3333333333333333ul;
@@ -81,14 +84,15 @@ deinterleave(const T v) requires(grain_128::check_auth_bit_width<T>())
     // = 0b0000000000000000111111111111111100000000000000001111111111111111
     constexpr uint64_t msk5 = 0x0000ffff0000fffful;
 
-    const uint64_t v0 = ((v & msk0) << 31) | (v & msk1);
-    const uint64_t v1 = ((v0 >> 1) | v0) & msk2;
-    const uint64_t v2 = ((v1 >> 2) | v1) & msk3;
-    const uint64_t v3 = ((v2 >> 4) | v2) & msk4;
-    const uint64_t v4 = ((v3 >> 8) | v3) & msk5;
+    const uint64_t v0 = static_cast<uint64_t>(v);
+    const uint64_t v1 = ((v0 & msk0) << 31) | (v0 & msk1);
+    const uint64_t v2 = ((v1 >> 1) | v1) & msk2;
+    const uint64_t v3 = ((v2 >> 2) | v2) & msk3;
+    const uint64_t v4 = ((v3 >> 4) | v3) & msk4;
+    const uint64_t v5 = ((v4 >> 8) | v4) & msk5;
 
-    const uint32_t even = static_cast<uint32_t>(v4);
-    const uint32_t odd = static_cast<uint32_t>(v4 >> 32);
+    const uint32_t even = static_cast<uint32_t>(v5);
+    const uint32_t odd = static_cast<uint32_t>(v5 >> 32);
 
     return std::make_pair(even, odd);
   }
@@ -116,11 +120,12 @@ split_bits(const T first,
   T even = 0;
   T odd = 0;
 
-  constexpr int blen = std::numeric_limits<T>::digits;
+  constexpr size_t blen = static_cast<size_t>(std::numeric_limits<T>::digits);
 
-#if defined __BMI2__
+#if defined(__BMI2__)
+#pragma message("Using BMI2 intrinsic for bit extraction")
 
-  if constexpr (blen == 32) {
+  if constexpr (blen == 32ul) {
     constexpr uint32_t mask_even = 0b01010101010101010101010101010101u;
     constexpr uint32_t mask_odd = mask_even << 1;
 
@@ -133,7 +138,7 @@ split_bits(const T first,
     even = (s_even << 16) | f_even;
     odd = (s_odd << 16) | f_odd;
 
-  } else if constexpr (blen == 8) {
+  } else if constexpr (blen == 8ul) {
     constexpr uint32_t mask_even = 0b01010101u;
     constexpr uint32_t mask_odd = mask_even << 1;
 
@@ -149,21 +154,13 @@ split_bits(const T first,
 
 #else
 
-  constexpr size_t hblen = static_cast<size_t>(blen) >> 1;
+  constexpr size_t hblen = blen >> 1;
 
-  for (size_t i = 0; i < hblen; i++) {
-    const size_t sboff_e = i << 1;
-    const size_t sboff_o = sboff_e ^ 1;
+  const auto first_ = deinterleave<T>(first);
+  const auto second_ = deinterleave<T>(second);
 
-    const size_t dboff0 = i;
-    const size_t dboff1 = i + hblen;
-
-    even |= ((first >> sboff_e) & 0b1) << dboff0;
-    even |= ((second >> sboff_e) & 0b1) << dboff1;
-
-    odd |= ((first >> sboff_o) & 0b1) << dboff0;
-    odd |= ((second >> sboff_o) & 0b1) << dboff1;
-  }
+  even = (second_.first << hblen) | first_.first;
+  odd = (second_.second << hblen) | first_.second;
 
 #endif
 
