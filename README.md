@@ -116,7 +116,7 @@ Note that, when benchmarking, associated data length is always kept 32 -bytes, w
 ### On AWS Graviton3
 
 ```bash
-2022-08-31T12:25:47+00:00
+2022-08-31T16:05:56+00:00
 Running ./bench/a.out
 Run on (64 X 2100 MHz CPU s)
 CPU Caches:
@@ -124,54 +124,54 @@ CPU Caches:
   L1 Instruction 64 KiB (x64)
   L2 Unified 1024 KiB (x64)
   L3 Unified 32768 KiB (x1)
-Load Average: 0.05, 0.01, 0.00
+Load Average: 0.00, 0.00, 0.00
 -----------------------------------------------------------------------------------------------
 Benchmark                                     Time             CPU   Iterations UserCounters...
 -----------------------------------------------------------------------------------------------
-bench_grain_128aead::encrypt/32/64         2506 ns         2506 ns       279308 bytes_per_second=36.5397M/s
-bench_grain_128aead::decrypt/32/64         2456 ns         2456 ns       285072 bytes_per_second=37.2781M/s
-bench_grain_128aead::encrypt/32/128        3930 ns         3930 ns       178112 bytes_per_second=38.8301M/s
-bench_grain_128aead::decrypt/32/128        3811 ns         3811 ns       183671 bytes_per_second=40.0374M/s
-bench_grain_128aead::encrypt/32/256        6778 ns         6778 ns       103258 bytes_per_second=40.524M/s
-bench_grain_128aead::decrypt/32/256        6521 ns         6521 ns       107332 bytes_per_second=42.1176M/s
-bench_grain_128aead::encrypt/32/512       12470 ns        12470 ns        56131 bytes_per_second=41.6049M/s
-bench_grain_128aead::decrypt/32/512       11944 ns        11944 ns        58577 bytes_per_second=43.4367M/s
-bench_grain_128aead::encrypt/32/1024      23863 ns        23862 ns        29333 bytes_per_second=42.2051M/s
-bench_grain_128aead::decrypt/32/1024      22771 ns        22771 ns        30741 bytes_per_second=44.2265M/s
-bench_grain_128aead::encrypt/32/2048      46640 ns        46639 ns        15008 bytes_per_second=42.532M/s
-bench_grain_128aead::decrypt/32/2048      44395 ns        44394 ns        15773 bytes_per_second=44.6828M/s
-bench_grain_128aead::encrypt/32/4096      92076 ns        92074 ns         7598 bytes_per_second=42.7564M/s
-bench_grain_128aead::decrypt/32/4096      87705 ns        87703 ns         7981 bytes_per_second=44.8873M/s
+bench_grain_128aead::encrypt/32/64         2260 ns         2260 ns       309684 bytes_per_second=40.5189M/s
+bench_grain_128aead::decrypt/32/64         2297 ns         2297 ns       304639 bytes_per_second=39.8507M/s
+bench_grain_128aead::encrypt/32/128        3459 ns         3459 ns       202384 bytes_per_second=44.1175M/s
+bench_grain_128aead::decrypt/32/128        3525 ns         3525 ns       198544 bytes_per_second=43.2822M/s
+bench_grain_128aead::encrypt/32/256        5862 ns         5862 ns       119396 bytes_per_second=46.8546M/s
+bench_grain_128aead::decrypt/32/256        5984 ns         5984 ns       117008 bytes_per_second=45.8975M/s
+bench_grain_128aead::encrypt/32/512       10672 ns        10672 ns        65566 bytes_per_second=48.6149M/s
+bench_grain_128aead::decrypt/32/512       10930 ns        10930 ns        64043 bytes_per_second=47.4664M/s
+bench_grain_128aead::encrypt/32/1024      20291 ns        20290 ns        34500 bytes_per_second=49.6335M/s
+bench_grain_128aead::decrypt/32/1024      20786 ns        20785 ns        33673 bytes_per_second=48.4518M/s
+bench_grain_128aead::encrypt/32/2048      39525 ns        39524 ns        17717 bytes_per_second=50.1878M/s
+bench_grain_128aead::decrypt/32/2048      40434 ns        40433 ns        17287 bytes_per_second=49.0603M/s
+bench_grain_128aead::encrypt/32/4096      78112 ns        78110 ns         8957 bytes_per_second=50.4003M/s
+bench_grain_128aead::decrypt/32/4096      79721 ns        79719 ns         8780 bytes_per_second=49.3829M/s
 ```
 
 ### On AWS Graviton2
 
 ```bash
-2022-08-31T12:24:25+00:00
+2022-08-31T16:04:51+00:00
 Running ./bench/a.out
 Run on (16 X 166.66 MHz CPU s)
 CPU Caches:
   L1 Data 32 KiB (x16)
   L1 Instruction 48 KiB (x16)
   L2 Unified 2048 KiB (x4)
-Load Average: 0.15, 0.03, 0.01
+Load Average: 0.08, 0.02, 0.01
 -----------------------------------------------------------------------------------------------
 Benchmark                                     Time             CPU   Iterations UserCounters...
 -----------------------------------------------------------------------------------------------
-bench_grain_128aead::encrypt/32/64         4205 ns         4205 ns       166463 bytes_per_second=21.7718M/s
-bench_grain_128aead::decrypt/32/64         4300 ns         4300 ns       162793 bytes_per_second=21.2925M/s
-bench_grain_128aead::encrypt/32/128        6580 ns         6579 ns       106368 bytes_per_second=23.1915M/s
-bench_grain_128aead::decrypt/32/128        6737 ns         6737 ns       103904 bytes_per_second=22.6501M/s
-bench_grain_128aead::encrypt/32/256       11328 ns        11328 ns        61792 bytes_per_second=24.2458M/s
-bench_grain_128aead::decrypt/32/256       11610 ns        11610 ns        60286 bytes_per_second=23.6562M/s
-bench_grain_128aead::encrypt/32/512       20825 ns        20825 ns        33612 bytes_per_second=24.9123M/s
-bench_grain_128aead::decrypt/32/512       21358 ns        21358 ns        32773 bytes_per_second=24.2908M/s
-bench_grain_128aead::encrypt/32/1024      39821 ns        39820 ns        17579 bytes_per_second=25.2908M/s
-bench_grain_128aead::decrypt/32/1024      40854 ns        40854 ns        17135 bytes_per_second=24.6508M/s
-bench_grain_128aead::encrypt/32/2048      77815 ns        77810 ns         8995 bytes_per_second=25.4933M/s
-bench_grain_128aead::decrypt/32/2048      79846 ns        79845 ns         8766 bytes_per_second=24.8437M/s
-bench_grain_128aead::encrypt/32/4096     153787 ns       153786 ns         4552 bytes_per_second=25.5989M/s
-bench_grain_128aead::decrypt/32/4096     157832 ns       157829 ns         4435 bytes_per_second=24.9432M/s
+bench_grain_128aead::encrypt/32/64         3815 ns         3815 ns       183503 bytes_per_second=24.0005M/s
+bench_grain_128aead::decrypt/32/64         3959 ns         3959 ns       176836 bytes_per_second=23.1279M/s
+bench_grain_128aead::encrypt/32/128        5806 ns         5806 ns       120566 bytes_per_second=26.2823M/s
+bench_grain_128aead::decrypt/32/128        6061 ns         6061 ns       115485 bytes_per_second=25.1749M/s
+bench_grain_128aead::encrypt/32/256        9788 ns         9788 ns        71513 bytes_per_second=28.06M/s
+bench_grain_128aead::decrypt/32/256       10266 ns        10266 ns        68180 bytes_per_second=26.7538M/s
+bench_grain_128aead::encrypt/32/512       17753 ns        17753 ns        39429 bytes_per_second=29.2235M/s
+bench_grain_128aead::decrypt/32/512       18677 ns        18677 ns        37480 bytes_per_second=27.7779M/s
+bench_grain_128aead::encrypt/32/1024      33683 ns        33682 ns        20781 bytes_per_second=29.8993M/s
+bench_grain_128aead::decrypt/32/1024      35499 ns        35498 ns        19719 bytes_per_second=28.3703M/s
+bench_grain_128aead::encrypt/32/2048      65545 ns        65544 ns        10679 bytes_per_second=30.2645M/s
+bench_grain_128aead::decrypt/32/2048      69141 ns        69140 ns        10124 bytes_per_second=28.6903M/s
+bench_grain_128aead::encrypt/32/4096     129270 ns       129266 ns         5415 bytes_per_second=30.4548M/s
+bench_grain_128aead::decrypt/32/4096     136443 ns       136436 ns         5130 bytes_per_second=28.8542M/s
 ```
 
 ### On Intel(R) Core(TM) i5-8279U CPU @ 2.40GHz
