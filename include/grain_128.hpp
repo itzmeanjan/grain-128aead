@@ -173,15 +173,23 @@ h(const state_t* const st)
 inline static uint32_t
 hx32(const state_t* const st)
 {
-  const uint32_t nfsr[]{ from_le_bytes<uint32_t>(st->nfsr + 0ul),
-                         from_le_bytes<uint32_t>(st->nfsr + 4ul),
-                         from_le_bytes<uint32_t>(st->nfsr + 8ul),
-                         from_le_bytes<uint32_t>(st->nfsr + 12ul) };
+  uint32_t nfsr[4]{};
+  uint32_t lfsr[4]{};
 
-  const uint32_t lfsr[]{ from_le_bytes<uint32_t>(st->lfsr + 0ul),
-                         from_le_bytes<uint32_t>(st->lfsr + 4ul),
-                         from_le_bytes<uint32_t>(st->lfsr + 8ul),
-                         from_le_bytes<uint32_t>(st->lfsr + 12ul) };
+  if constexpr (std::endian::native == std::endian::little) {
+    std::memcpy(nfsr, st->nfsr, 16);
+    std::memcpy(lfsr, st->lfsr, 16);
+  } else {
+    nfsr[0] = from_le_bytes<uint32_t>(st->nfsr + 0ul);
+    nfsr[1] = from_le_bytes<uint32_t>(st->nfsr + 4ul);
+    nfsr[2] = from_le_bytes<uint32_t>(st->nfsr + 8ul);
+    nfsr[3] = from_le_bytes<uint32_t>(st->nfsr + 12ul);
+
+    lfsr[0] = from_le_bytes<uint32_t>(st->lfsr + 0ul);
+    lfsr[1] = from_le_bytes<uint32_t>(st->lfsr + 4ul);
+    lfsr[2] = from_le_bytes<uint32_t>(st->lfsr + 8ul);
+    lfsr[3] = from_le_bytes<uint32_t>(st->lfsr + 12ul);
+  }
 
   const uint32_t x0 = get_32bits<12ul>(nfsr);
   const uint32_t x1 = get_32bits<8ul>(lfsr);
@@ -245,15 +253,23 @@ ksb(const state_t* const st)
 inline static uint32_t
 ksbx32(const state_t* const st)
 {
-  const uint32_t nfsr[]{ from_le_bytes<uint32_t>(st->nfsr + 0ul),
-                         from_le_bytes<uint32_t>(st->nfsr + 4ul),
-                         from_le_bytes<uint32_t>(st->nfsr + 8ul),
-                         from_le_bytes<uint32_t>(st->nfsr + 12ul) };
+  uint32_t nfsr[4]{};
+  uint32_t lfsr[4]{};
 
-  const uint32_t lfsr[]{ from_le_bytes<uint32_t>(st->lfsr + 0ul),
-                         from_le_bytes<uint32_t>(st->lfsr + 4ul),
-                         from_le_bytes<uint32_t>(st->lfsr + 8ul),
-                         from_le_bytes<uint32_t>(st->lfsr + 12ul) };
+  if constexpr (std::endian::native == std::endian::little) {
+    std::memcpy(nfsr, st->nfsr, 16);
+    std::memcpy(lfsr, st->lfsr, 16);
+  } else {
+    nfsr[0] = from_le_bytes<uint32_t>(st->nfsr + 0ul);
+    nfsr[1] = from_le_bytes<uint32_t>(st->nfsr + 4ul);
+    nfsr[2] = from_le_bytes<uint32_t>(st->nfsr + 8ul);
+    nfsr[3] = from_le_bytes<uint32_t>(st->nfsr + 12ul);
+
+    lfsr[0] = from_le_bytes<uint32_t>(st->lfsr + 0ul);
+    lfsr[1] = from_le_bytes<uint32_t>(st->lfsr + 4ul);
+    lfsr[2] = from_le_bytes<uint32_t>(st->lfsr + 8ul);
+    lfsr[3] = from_le_bytes<uint32_t>(st->lfsr + 12ul);
+  }
 
   const uint32_t hx = hx32(st);
 
@@ -300,10 +316,16 @@ l(const state_t* const st)
 inline static uint32_t
 lx32(const state_t* const st)
 {
-  const uint32_t lfsr[]{ from_le_bytes<uint32_t>(st->lfsr + 0ul),
-                         from_le_bytes<uint32_t>(st->lfsr + 4ul),
-                         from_le_bytes<uint32_t>(st->lfsr + 8ul),
-                         from_le_bytes<uint32_t>(st->lfsr + 12ul) };
+  uint32_t lfsr[4]{};
+
+  if constexpr (std::endian::native == std::endian::little) {
+    std::memcpy(lfsr, st->lfsr, 16);
+  } else {
+    lfsr[0] = from_le_bytes<uint32_t>(st->lfsr + 0ul);
+    lfsr[1] = from_le_bytes<uint32_t>(st->lfsr + 4ul);
+    lfsr[2] = from_le_bytes<uint32_t>(st->lfsr + 8ul);
+    lfsr[3] = from_le_bytes<uint32_t>(st->lfsr + 12ul);
+  }
 
   const uint32_t s0 = get_32bits<0ul>(lfsr);
   const uint32_t s7 = get_32bits<7ul>(lfsr);
@@ -391,10 +413,16 @@ f(const state_t* const st)
 inline static uint32_t
 fx32(const state_t* const st)
 {
-  const uint32_t nfsr[]{ from_le_bytes<uint32_t>(st->nfsr + 0ul),
-                         from_le_bytes<uint32_t>(st->nfsr + 4ul),
-                         from_le_bytes<uint32_t>(st->nfsr + 8ul),
-                         from_le_bytes<uint32_t>(st->nfsr + 12ul) };
+  uint32_t nfsr[4]{};
+
+  if constexpr (std::endian::native == std::endian::little) {
+    std::memcpy(nfsr, st->nfsr, 16);
+  } else {
+    nfsr[0] = from_le_bytes<uint32_t>(st->nfsr + 0ul);
+    nfsr[1] = from_le_bytes<uint32_t>(st->nfsr + 4ul);
+    nfsr[2] = from_le_bytes<uint32_t>(st->nfsr + 8ul);
+    nfsr[3] = from_le_bytes<uint32_t>(st->nfsr + 12ul);
+  }
 
   const uint32_t s0 = from_le_bytes<uint32_t>(st->lfsr + 0ul);
 
