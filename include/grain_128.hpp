@@ -27,14 +27,15 @@ struct state_t
 
 // Given a byte array and a starting bit index ( in that byte array ), this
 // routine extracts out 8 consecutive bits ( all indexing starts from 0 )
-// starting from provided bit index | end index is calculated as (sidx + 7)
+// starting from provided bit index s.t. end index is calculated as (sidx + 7)
+template<const size_t sidx>
 inline static constexpr uint8_t
-get_8bits(const uint8_t* const arr, const size_t sidx)
+get_8bits(const uint8_t* const arr)
 {
-  const size_t eidx = sidx + 7ul;
+  constexpr size_t eidx = sidx + 7ul;
 
-  const auto sidx_ = std::make_pair(sidx >> 3, sidx & 7ul);
-  const auto eidx_ = std::make_pair(eidx >> 3, eidx & 7ul);
+  constexpr auto sidx_ = std::make_pair(sidx >> 3, sidx & 7ul);
+  constexpr auto eidx_ = std::make_pair(eidx >> 3, eidx & 7ul);
 
   const uint8_t lo = arr[sidx_.first] >> sidx_.second;
   const uint8_t hi = arr[eidx_.first] << (7ul - eidx_.second);
@@ -47,15 +48,16 @@ get_8bits(const uint8_t* const arr, const size_t sidx)
 
 // Given a word ( each word is 32 -bit wide ) array and a starting bit index (
 // in that word array ), this routine extracts out 32 consecutive bits ( all
-// indexing starts from 0 ) starting from provided bit index | end index is
+// indexing starts from 0 ) starting from provided bit index s.t. end index is
 // calculated as (sidx + 31)
+template<const size_t sidx>
 inline static constexpr uint32_t
-get_32bits(const uint32_t* const arr, const size_t sidx)
+get_32bits(const uint32_t* const arr)
 {
-  const size_t eidx = sidx + 31ul;
+  constexpr size_t eidx = sidx + 31ul;
 
-  const auto sidx_ = std::make_pair(sidx >> 5, sidx & 31ul);
-  const auto eidx_ = std::make_pair(eidx >> 5, eidx & 31ul);
+  constexpr auto sidx_ = std::make_pair(sidx >> 5, sidx & 31ul);
+  constexpr auto eidx_ = std::make_pair(eidx >> 5, eidx & 31ul);
 
   const uint32_t lo = arr[sidx_.first] >> sidx_.second;
   const uint32_t hi = arr[eidx_.first] << (31ul - eidx_.second);
@@ -135,15 +137,15 @@ to_le_bytes(const T v, uint8_t* const bytes) requires(check_type_bit_width<T>())
 inline static uint8_t
 h(const state_t* const st)
 {
-  const uint8_t x0 = get_8bits(st->nfsr, 12);
-  const uint8_t x1 = get_8bits(st->lfsr, 8);
-  const uint8_t x2 = get_8bits(st->lfsr, 13);
-  const uint8_t x3 = get_8bits(st->lfsr, 20);
-  const uint8_t x4 = get_8bits(st->nfsr, 95);
-  const uint8_t x5 = get_8bits(st->lfsr, 42);
-  const uint8_t x6 = get_8bits(st->lfsr, 60);
-  const uint8_t x7 = get_8bits(st->lfsr, 79);
-  const uint8_t x8 = get_8bits(st->lfsr, 94);
+  const uint8_t x0 = get_8bits<12ul>(st->nfsr);
+  const uint8_t x1 = get_8bits<8ul>(st->lfsr);
+  const uint8_t x2 = get_8bits<13ul>(st->lfsr);
+  const uint8_t x3 = get_8bits<20ul>(st->lfsr);
+  const uint8_t x4 = get_8bits<95ul>(st->nfsr);
+  const uint8_t x5 = get_8bits<42ul>(st->lfsr);
+  const uint8_t x6 = get_8bits<60ul>(st->lfsr);
+  const uint8_t x7 = get_8bits<79ul>(st->lfsr);
+  const uint8_t x8 = get_8bits<94ul>(st->lfsr);
 
   const uint8_t x0x1 = x0 & x1;
   const uint8_t x2x3 = x2 & x3;
@@ -181,15 +183,15 @@ hx32(const state_t* const st)
                          from_le_bytes<uint32_t>(st->lfsr + 8ul),
                          from_le_bytes<uint32_t>(st->lfsr + 12ul) };
 
-  const uint32_t x0 = get_32bits(nfsr, 12);
-  const uint32_t x1 = get_32bits(lfsr, 8);
-  const uint32_t x2 = get_32bits(lfsr, 13);
-  const uint32_t x3 = get_32bits(lfsr, 20);
-  const uint32_t x4 = get_32bits(nfsr, 95);
-  const uint32_t x5 = get_32bits(lfsr, 42);
-  const uint32_t x6 = get_32bits(lfsr, 60);
-  const uint32_t x7 = get_32bits(lfsr, 79);
-  const uint32_t x8 = get_32bits(lfsr, 94);
+  const uint32_t x0 = get_32bits<12ul>(nfsr);
+  const uint32_t x1 = get_32bits<8ul>(lfsr);
+  const uint32_t x2 = get_32bits<13ul>(lfsr);
+  const uint32_t x3 = get_32bits<20ul>(lfsr);
+  const uint32_t x4 = get_32bits<95ul>(nfsr);
+  const uint32_t x5 = get_32bits<42ul>(lfsr);
+  const uint32_t x6 = get_32bits<60ul>(lfsr);
+  const uint32_t x7 = get_32bits<79ul>(lfsr);
+  const uint32_t x8 = get_32bits<94ul>(lfsr);
 
   const uint32_t x0x1 = x0 & x1;
   const uint32_t x2x3 = x2 & x3;
@@ -215,15 +217,15 @@ ksb(const state_t* const st)
 {
   const uint8_t hx = h(st);
 
-  const uint8_t s93 = get_8bits(st->lfsr, 93);
+  const uint8_t s93 = get_8bits<93ul>(st->lfsr);
 
-  const uint8_t b2 = get_8bits(st->nfsr, 2);
-  const uint8_t b15 = get_8bits(st->nfsr, 15);
-  const uint8_t b36 = get_8bits(st->nfsr, 36);
-  const uint8_t b45 = get_8bits(st->nfsr, 45);
-  const uint8_t b64 = get_8bits(st->nfsr, 64);
-  const uint8_t b73 = get_8bits(st->nfsr, 73);
-  const uint8_t b89 = get_8bits(st->nfsr, 89);
+  const uint8_t b2 = get_8bits<2ul>(st->nfsr);
+  const uint8_t b15 = get_8bits<15ul>(st->nfsr);
+  const uint8_t b36 = get_8bits<36ul>(st->nfsr);
+  const uint8_t b45 = get_8bits<45ul>(st->nfsr);
+  const uint8_t b64 = get_8bits<64ul>(st->nfsr);
+  const uint8_t b73 = get_8bits<73ul>(st->nfsr);
+  const uint8_t b89 = get_8bits<89ul>(st->nfsr);
 
   const uint8_t bt = b2 ^ b15 ^ b36 ^ b45 ^ b64 ^ b73 ^ b89;
 
@@ -255,15 +257,15 @@ ksbx32(const state_t* const st)
 
   const uint32_t hx = hx32(st);
 
-  const uint32_t s93 = get_32bits(lfsr, 93);
+  const uint32_t s93 = get_32bits<93ul>(lfsr);
 
-  const uint32_t b2 = get_32bits(nfsr, 2);
-  const uint32_t b15 = get_32bits(nfsr, 15);
-  const uint32_t b36 = get_32bits(nfsr, 36);
-  const uint32_t b45 = get_32bits(nfsr, 45);
-  const uint32_t b64 = get_32bits(nfsr, 64);
-  const uint32_t b73 = get_32bits(nfsr, 73);
-  const uint32_t b89 = get_32bits(nfsr, 89);
+  const uint32_t b2 = get_32bits<2ul>(nfsr);
+  const uint32_t b15 = get_32bits<15ul>(nfsr);
+  const uint32_t b36 = get_32bits<36ul>(nfsr);
+  const uint32_t b45 = get_32bits<45ul>(nfsr);
+  const uint32_t b64 = get_32bits<64ul>(nfsr);
+  const uint32_t b73 = get_32bits<73ul>(nfsr);
+  const uint32_t b89 = get_32bits<89ul>(nfsr);
 
   const uint32_t bt = b2 ^ b15 ^ b36 ^ b45 ^ b64 ^ b73 ^ b89;
 
@@ -279,12 +281,12 @@ ksbx32(const state_t* const st)
 inline static uint8_t
 l(const state_t* const st)
 {
-  const uint8_t s0 = get_8bits(st->lfsr, 0);
-  const uint8_t s7 = get_8bits(st->lfsr, 7);
-  const uint8_t s38 = get_8bits(st->lfsr, 38);
-  const uint8_t s70 = get_8bits(st->lfsr, 70);
-  const uint8_t s81 = get_8bits(st->lfsr, 81);
-  const uint8_t s96 = get_8bits(st->lfsr, 96);
+  const uint8_t s0 = get_8bits<0ul>(st->lfsr);
+  const uint8_t s7 = get_8bits<7ul>(st->lfsr);
+  const uint8_t s38 = get_8bits<38ul>(st->lfsr);
+  const uint8_t s70 = get_8bits<70ul>(st->lfsr);
+  const uint8_t s81 = get_8bits<81ul>(st->lfsr);
+  const uint8_t s96 = get_8bits<96ul>(st->lfsr);
 
   const uint8_t res = s0 ^ s7 ^ s38 ^ s70 ^ s81 ^ s96;
   return res;
@@ -303,12 +305,12 @@ lx32(const state_t* const st)
                          from_le_bytes<uint32_t>(st->lfsr + 8ul),
                          from_le_bytes<uint32_t>(st->lfsr + 12ul) };
 
-  const uint32_t s0 = get_32bits(lfsr, 0);
-  const uint32_t s7 = get_32bits(lfsr, 7);
-  const uint32_t s38 = get_32bits(lfsr, 38);
-  const uint32_t s70 = get_32bits(lfsr, 70);
-  const uint32_t s81 = get_32bits(lfsr, 81);
-  const uint32_t s96 = get_32bits(lfsr, 96);
+  const uint32_t s0 = get_32bits<0ul>(lfsr);
+  const uint32_t s7 = get_32bits<7ul>(lfsr);
+  const uint32_t s38 = get_32bits<38ul>(lfsr);
+  const uint32_t s70 = get_32bits<70ul>(lfsr);
+  const uint32_t s81 = get_32bits<81ul>(lfsr);
+  const uint32_t s96 = get_32bits<96ul>(lfsr);
 
   const uint32_t res = s0 ^ s7 ^ s38 ^ s70 ^ s81 ^ s96;
   return res;
@@ -322,47 +324,47 @@ lx32(const state_t* const st)
 inline static uint8_t
 f(const state_t* const st)
 {
-  const uint8_t s0 = get_8bits(st->lfsr, 0);
+  const uint8_t s0 = get_8bits<0ul>(st->lfsr);
 
-  const uint8_t b0 = get_8bits(st->nfsr, 0);
-  const uint8_t b26 = get_8bits(st->nfsr, 26);
-  const uint8_t b56 = get_8bits(st->nfsr, 56);
-  const uint8_t b91 = get_8bits(st->nfsr, 91);
-  const uint8_t b96 = get_8bits(st->nfsr, 96);
+  const uint8_t b0 = get_8bits<0ul>(st->nfsr);
+  const uint8_t b26 = get_8bits<26ul>(st->nfsr);
+  const uint8_t b56 = get_8bits<56ul>(st->nfsr);
+  const uint8_t b91 = get_8bits<91ul>(st->nfsr);
+  const uint8_t b96 = get_8bits<96ul>(st->nfsr);
 
-  const uint8_t b3 = get_8bits(st->nfsr, 3);
-  const uint8_t b67 = get_8bits(st->nfsr, 67);
+  const uint8_t b3 = get_8bits<3ul>(st->nfsr);
+  const uint8_t b67 = get_8bits<67ul>(st->nfsr);
 
-  const uint8_t b11 = get_8bits(st->nfsr, 11);
-  const uint8_t b13 = get_8bits(st->nfsr, 13);
+  const uint8_t b11 = get_8bits<11ul>(st->nfsr);
+  const uint8_t b13 = get_8bits<13ul>(st->nfsr);
 
-  const uint8_t b17 = get_8bits(st->nfsr, 17);
-  const uint8_t b18 = get_8bits(st->nfsr, 18);
+  const uint8_t b17 = get_8bits<17ul>(st->nfsr);
+  const uint8_t b18 = get_8bits<18ul>(st->nfsr);
 
-  const uint8_t b27 = get_8bits(st->nfsr, 27);
-  const uint8_t b59 = get_8bits(st->nfsr, 59);
+  const uint8_t b27 = get_8bits<27ul>(st->nfsr);
+  const uint8_t b59 = get_8bits<59ul>(st->nfsr);
 
-  const uint8_t b40 = get_8bits(st->nfsr, 40);
-  const uint8_t b48 = get_8bits(st->nfsr, 48);
+  const uint8_t b40 = get_8bits<40ul>(st->nfsr);
+  const uint8_t b48 = get_8bits<48ul>(st->nfsr);
 
-  const uint8_t b61 = get_8bits(st->nfsr, 61);
-  const uint8_t b65 = get_8bits(st->nfsr, 65);
+  const uint8_t b61 = get_8bits<61ul>(st->nfsr);
+  const uint8_t b65 = get_8bits<65ul>(st->nfsr);
 
-  const uint8_t b68 = get_8bits(st->nfsr, 68);
-  const uint8_t b84 = get_8bits(st->nfsr, 84);
+  const uint8_t b68 = get_8bits<68ul>(st->nfsr);
+  const uint8_t b84 = get_8bits<84ul>(st->nfsr);
 
-  const uint8_t b22 = get_8bits(st->nfsr, 22);
-  const uint8_t b24 = get_8bits(st->nfsr, 24);
-  const uint8_t b25 = get_8bits(st->nfsr, 25);
+  const uint8_t b22 = get_8bits<22ul>(st->nfsr);
+  const uint8_t b24 = get_8bits<24ul>(st->nfsr);
+  const uint8_t b25 = get_8bits<25ul>(st->nfsr);
 
-  const uint8_t b70 = get_8bits(st->nfsr, 70);
-  const uint8_t b78 = get_8bits(st->nfsr, 78);
-  const uint8_t b82 = get_8bits(st->nfsr, 82);
+  const uint8_t b70 = get_8bits<70ul>(st->nfsr);
+  const uint8_t b78 = get_8bits<78ul>(st->nfsr);
+  const uint8_t b82 = get_8bits<82ul>(st->nfsr);
 
-  const uint8_t b88 = get_8bits(st->nfsr, 88);
-  const uint8_t b92 = get_8bits(st->nfsr, 92);
-  const uint8_t b93 = get_8bits(st->nfsr, 93);
-  const uint8_t b95 = get_8bits(st->nfsr, 95);
+  const uint8_t b88 = get_8bits<88ul>(st->nfsr);
+  const uint8_t b92 = get_8bits<92ul>(st->nfsr);
+  const uint8_t b93 = get_8bits<93ul>(st->nfsr);
+  const uint8_t b95 = get_8bits<95ul>(st->nfsr);
 
   const uint8_t t0 = b0 ^ b26 ^ b56 ^ b91 ^ b96;
   const uint8_t t1 = b3 & b67;
@@ -396,45 +398,45 @@ fx32(const state_t* const st)
 
   const uint32_t s0 = from_le_bytes<uint32_t>(st->lfsr + 0ul);
 
-  const uint32_t b0 = get_32bits(nfsr, 0);
-  const uint32_t b26 = get_32bits(nfsr, 26);
-  const uint32_t b56 = get_32bits(nfsr, 56);
-  const uint32_t b91 = get_32bits(nfsr, 91);
-  const uint32_t b96 = get_32bits(nfsr, 96);
+  const uint32_t b0 = get_32bits<0ul>(nfsr);
+  const uint32_t b26 = get_32bits<26ul>(nfsr);
+  const uint32_t b56 = get_32bits<56ul>(nfsr);
+  const uint32_t b91 = get_32bits<91ul>(nfsr);
+  const uint32_t b96 = get_32bits<96ul>(nfsr);
 
-  const uint32_t b3 = get_32bits(nfsr, 3);
-  const uint32_t b67 = get_32bits(nfsr, 67);
+  const uint32_t b3 = get_32bits<3ul>(nfsr);
+  const uint32_t b67 = get_32bits<67ul>(nfsr);
 
-  const uint32_t b11 = get_32bits(nfsr, 11);
-  const uint32_t b13 = get_32bits(nfsr, 13);
+  const uint32_t b11 = get_32bits<11ul>(nfsr);
+  const uint32_t b13 = get_32bits<13ul>(nfsr);
 
-  const uint32_t b17 = get_32bits(nfsr, 17);
-  const uint32_t b18 = get_32bits(nfsr, 18);
+  const uint32_t b17 = get_32bits<17ul>(nfsr);
+  const uint32_t b18 = get_32bits<18ul>(nfsr);
 
-  const uint32_t b27 = get_32bits(nfsr, 27);
-  const uint32_t b59 = get_32bits(nfsr, 59);
+  const uint32_t b27 = get_32bits<27ul>(nfsr);
+  const uint32_t b59 = get_32bits<59ul>(nfsr);
 
-  const uint32_t b40 = get_32bits(nfsr, 40);
-  const uint32_t b48 = get_32bits(nfsr, 48);
+  const uint32_t b40 = get_32bits<40ul>(nfsr);
+  const uint32_t b48 = get_32bits<48ul>(nfsr);
 
-  const uint32_t b61 = get_32bits(nfsr, 61);
-  const uint32_t b65 = get_32bits(nfsr, 65);
+  const uint32_t b61 = get_32bits<61ul>(nfsr);
+  const uint32_t b65 = get_32bits<65ul>(nfsr);
 
-  const uint32_t b68 = get_32bits(nfsr, 68);
-  const uint32_t b84 = get_32bits(nfsr, 84);
+  const uint32_t b68 = get_32bits<68ul>(nfsr);
+  const uint32_t b84 = get_32bits<84ul>(nfsr);
 
-  const uint32_t b22 = get_32bits(nfsr, 22);
-  const uint32_t b24 = get_32bits(nfsr, 24);
-  const uint32_t b25 = get_32bits(nfsr, 25);
+  const uint32_t b22 = get_32bits<22ul>(nfsr);
+  const uint32_t b24 = get_32bits<24ul>(nfsr);
+  const uint32_t b25 = get_32bits<25ul>(nfsr);
 
-  const uint32_t b70 = get_32bits(nfsr, 70);
-  const uint32_t b78 = get_32bits(nfsr, 78);
-  const uint32_t b82 = get_32bits(nfsr, 82);
+  const uint32_t b70 = get_32bits<70ul>(nfsr);
+  const uint32_t b78 = get_32bits<78ul>(nfsr);
+  const uint32_t b82 = get_32bits<82ul>(nfsr);
 
-  const uint32_t b88 = get_32bits(nfsr, 88);
-  const uint32_t b92 = get_32bits(nfsr, 92);
-  const uint32_t b93 = get_32bits(nfsr, 93);
-  const uint32_t b95 = get_32bits(nfsr, 95);
+  const uint32_t b88 = get_32bits<88ul>(nfsr);
+  const uint32_t b92 = get_32bits<92ul>(nfsr);
+  const uint32_t b93 = get_32bits<93ul>(nfsr);
+  const uint32_t b95 = get_32bits<95ul>(nfsr);
 
   const uint32_t t0 = b0 ^ b26 ^ b56 ^ b91 ^ b96;
   const uint32_t t1 = b3 & b67;
