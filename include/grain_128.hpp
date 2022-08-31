@@ -25,22 +25,6 @@ struct state_t
   uint8_t sreg[8];  // 64 -bit shift register
 };
 
-// Given a bit index in a bit array, this function computes byte index ( =
-// selected byte ) & bit to pick up from the selected byte, when the bit
-// array is represented as a byte array
-//
-// Note, all these bit & byte indices are zero based.
-inline static constexpr std::pair<size_t, size_t>
-compute_index(
-  const size_t idx // bit index to be splitted into byte and bit offset
-)
-{
-  const size_t off = idx >> 3;
-  const size_t boff = idx & 7;
-
-  return std::make_pair(off, boff);
-}
-
 // Given a byte array and a starting bit index ( in that byte array ), this
 // routine extracts out 8 consecutive bits ( all indexing starts from 0 )
 // starting from provided bit index | end index is calculated as (sidx + 7)
@@ -49,8 +33,8 @@ get_8bits(const uint8_t* const arr, const size_t sidx)
 {
   const size_t eidx = sidx + 7ul;
 
-  const auto sidx_ = compute_index(sidx);
-  const auto eidx_ = compute_index(eidx);
+  const auto sidx_ = std::make_pair(sidx >> 3, sidx & 7ul);
+  const auto eidx_ = std::make_pair(eidx >> 3, eidx & 7ul);
 
   const uint8_t lo = arr[sidx_.first] >> sidx_.second;
   const uint8_t hi = arr[eidx_.first] << (7ul - eidx_.second);
@@ -61,46 +45,78 @@ get_8bits(const uint8_t* const arr, const size_t sidx)
   return bits;
 }
 
-// Given a byte array and a starting bit index ( in that byte array ), this
-// routine extracts out 32 consecutive bits ( all indexing starts from 0 )
-// starting from provided bit index | end index is calculated as (sidx + 31)
-inline static uint32_t
-get_32bits(const uint8_t* const arr, const size_t sidx)
+// Given a word ( each word is 32 -bit wide ) array and a starting bit index (
+// in that word array ), this routine extracts out 32 consecutive bits ( all
+// indexing starts from 0 ) starting from provided bit index | end index is
+// calculated as (sidx + 31)
+inline static constexpr uint32_t
+get_32bits(const uint32_t* const arr, const size_t sidx)
 {
   const size_t eidx = sidx + 31ul;
 
-  const auto sidx_ = compute_index(sidx);
-  const auto eidx_ = compute_index(eidx);
+  const auto sidx_ = std::make_pair(sidx >> 5, sidx & 31ul);
+  const auto eidx_ = std::make_pair(eidx >> 5, eidx & 31ul);
 
-  const size_t mbytes = eidx_.first - sidx_.first - 1ul;
+  const uint32_t lo = arr[sidx_.first] >> sidx_.second;
+  const uint32_t hi = arr[eidx_.first] << (31ul - eidx_.second);
 
-  const size_t lsb_cnt = 8ul - sidx_.second;
-  const size_t mid_cnt = mbytes << 3;
+  const bool flg = static_cast<bool>(sidx & 31ul);
+  const uint32_t bits = hi | (lo * flg);
 
-  const size_t hi_off = 7ul - eidx_.second;
-  const size_t msb_off = mid_cnt + lsb_cnt;
+  return bits;
+}
 
-  const uint8_t lo = arr[sidx_.first] >> sidx_.second;
-  const uint8_t hi = (arr[eidx_.first] << hi_off) >> hi_off;
+// Compile-time check to ensure that only uint32_t or uint64_t can be converted
+// to and/ or from byte array of length 4 and 8, respectively.
+template<typename T>
+inline static constexpr bool
+check_type_bit_width()
+{
+  constexpr int blen = std::numeric_limits<T>::digits;
+  return (blen == 32) || (blen == 64);
+}
 
-  const uint32_t lsb = static_cast<uint32_t>(lo);
-  const uint32_t msb = static_cast<uint32_t>(hi) << msb_off;
+// Given a byte array of length 4/ 8, this routine interprets those bytes in
+// little endian byte order, computing a 32/ 64 -bit unsigned integer
+template<typename T>
+inline static T
+from_le_bytes(const uint8_t* const bytes) requires(check_type_bit_width<T>())
+{
+  constexpr size_t blen = static_cast<size_t>(std::numeric_limits<T>::digits);
 
-  uint32_t mid = 0u;
-
-  if constexpr (std::endian::native == std::endian::little) {
-    std::memcpy(&mid, arr + sidx_.first + 1ul, mbytes);
-  } else {
-    for (size_t i = 0; i < mbytes; i++) {
-      const size_t off = sidx_.first + 1ul;
-      const size_t boff = i << 3;
-
-      mid |= static_cast<uint32_t>(arr[off + i]) << boff;
-    }
+  if constexpr (blen == 32ul) {
+    return (static_cast<uint32_t>(bytes[3]) << 24) |
+           (static_cast<uint32_t>(bytes[2]) << 16) |
+           (static_cast<uint32_t>(bytes[1]) << 8) |
+           (static_cast<uint32_t>(bytes[0]) << 0);
+  } else if constexpr (blen == 64ul) {
+    return (static_cast<uint64_t>(bytes[7]) << 56) |
+           (static_cast<uint64_t>(bytes[6]) << 48) |
+           (static_cast<uint64_t>(bytes[5]) << 40) |
+           (static_cast<uint64_t>(bytes[4]) << 32) |
+           (static_cast<uint64_t>(bytes[3]) << 24) |
+           (static_cast<uint64_t>(bytes[2]) << 16) |
+           (static_cast<uint64_t>(bytes[1]) << 8) |
+           (static_cast<uint64_t>(bytes[0]) << 0);
   }
+}
 
-  const uint32_t res = msb | (mid << lsb_cnt) | lsb;
-  return res;
+// Given a 32/ 64 -bit unsigned integer & a byte array of length 4/ 8, this
+// routine interprets u32/ u64 in little endian byte order and places each of 4/
+// 8 bytes in designated byte indices.
+template<typename T>
+inline static void
+to_le_bytes(const T v, uint8_t* const bytes) requires(check_type_bit_width<T>())
+{
+  constexpr size_t blen = static_cast<size_t>(std::numeric_limits<T>::digits);
+  static_assert((blen == 32) || (blen == 64), "Bit length of `T` ∈ {32, 64}");
+
+  constexpr size_t bcnt = sizeof(T);
+
+  for (size_t i = 0; i < bcnt; i++) {
+    const size_t boff = i << 3;
+    bytes[i] = static_cast<uint8_t>(v >> boff);
+  }
 }
 
 // Boolean function `h(x)`, which takes 9 state variable bits ( for 8
@@ -155,15 +171,25 @@ h(const state_t* const st)
 inline static uint32_t
 hx32(const state_t* const st)
 {
-  const uint32_t x0 = get_32bits(st->nfsr, 12);
-  const uint32_t x1 = get_32bits(st->lfsr, 8);
-  const uint32_t x2 = get_32bits(st->lfsr, 13);
-  const uint32_t x3 = get_32bits(st->lfsr, 20);
-  const uint32_t x4 = get_32bits(st->nfsr, 95);
-  const uint32_t x5 = get_32bits(st->lfsr, 42);
-  const uint32_t x6 = get_32bits(st->lfsr, 60);
-  const uint32_t x7 = get_32bits(st->lfsr, 79);
-  const uint32_t x8 = get_32bits(st->lfsr, 94);
+  const uint32_t nfsr[]{ from_le_bytes<uint32_t>(st->nfsr + 0ul),
+                         from_le_bytes<uint32_t>(st->nfsr + 4ul),
+                         from_le_bytes<uint32_t>(st->nfsr + 8ul),
+                         from_le_bytes<uint32_t>(st->nfsr + 12ul) };
+
+  const uint32_t lfsr[]{ from_le_bytes<uint32_t>(st->lfsr + 0ul),
+                         from_le_bytes<uint32_t>(st->lfsr + 4ul),
+                         from_le_bytes<uint32_t>(st->lfsr + 8ul),
+                         from_le_bytes<uint32_t>(st->lfsr + 12ul) };
+
+  const uint32_t x0 = get_32bits(nfsr, 12);
+  const uint32_t x1 = get_32bits(lfsr, 8);
+  const uint32_t x2 = get_32bits(lfsr, 13);
+  const uint32_t x3 = get_32bits(lfsr, 20);
+  const uint32_t x4 = get_32bits(nfsr, 95);
+  const uint32_t x5 = get_32bits(lfsr, 42);
+  const uint32_t x6 = get_32bits(lfsr, 60);
+  const uint32_t x7 = get_32bits(lfsr, 79);
+  const uint32_t x8 = get_32bits(lfsr, 94);
 
   const uint32_t x0x1 = x0 & x1;
   const uint32_t x2x3 = x2 & x3;
@@ -217,17 +243,27 @@ ksb(const state_t* const st)
 inline static uint32_t
 ksbx32(const state_t* const st)
 {
+  const uint32_t nfsr[]{ from_le_bytes<uint32_t>(st->nfsr + 0ul),
+                         from_le_bytes<uint32_t>(st->nfsr + 4ul),
+                         from_le_bytes<uint32_t>(st->nfsr + 8ul),
+                         from_le_bytes<uint32_t>(st->nfsr + 12ul) };
+
+  const uint32_t lfsr[]{ from_le_bytes<uint32_t>(st->lfsr + 0ul),
+                         from_le_bytes<uint32_t>(st->lfsr + 4ul),
+                         from_le_bytes<uint32_t>(st->lfsr + 8ul),
+                         from_le_bytes<uint32_t>(st->lfsr + 12ul) };
+
   const uint32_t hx = hx32(st);
 
-  const uint32_t s93 = get_32bits(st->lfsr, 93);
+  const uint32_t s93 = get_32bits(lfsr, 93);
 
-  const uint32_t b2 = get_32bits(st->nfsr, 2);
-  const uint32_t b15 = get_32bits(st->nfsr, 15);
-  const uint32_t b36 = get_32bits(st->nfsr, 36);
-  const uint32_t b45 = get_32bits(st->nfsr, 45);
-  const uint32_t b64 = get_32bits(st->nfsr, 64);
-  const uint32_t b73 = get_32bits(st->nfsr, 73);
-  const uint32_t b89 = get_32bits(st->nfsr, 89);
+  const uint32_t b2 = get_32bits(nfsr, 2);
+  const uint32_t b15 = get_32bits(nfsr, 15);
+  const uint32_t b36 = get_32bits(nfsr, 36);
+  const uint32_t b45 = get_32bits(nfsr, 45);
+  const uint32_t b64 = get_32bits(nfsr, 64);
+  const uint32_t b73 = get_32bits(nfsr, 73);
+  const uint32_t b89 = get_32bits(nfsr, 89);
 
   const uint32_t bt = b2 ^ b15 ^ b36 ^ b45 ^ b64 ^ b73 ^ b89;
 
@@ -262,12 +298,17 @@ l(const state_t* const st)
 inline static uint32_t
 lx32(const state_t* const st)
 {
-  const uint32_t s0 = get_32bits(st->lfsr, 0);
-  const uint32_t s7 = get_32bits(st->lfsr, 7);
-  const uint32_t s38 = get_32bits(st->lfsr, 38);
-  const uint32_t s70 = get_32bits(st->lfsr, 70);
-  const uint32_t s81 = get_32bits(st->lfsr, 81);
-  const uint32_t s96 = get_32bits(st->lfsr, 96);
+  const uint32_t lfsr[]{ from_le_bytes<uint32_t>(st->lfsr + 0ul),
+                         from_le_bytes<uint32_t>(st->lfsr + 4ul),
+                         from_le_bytes<uint32_t>(st->lfsr + 8ul),
+                         from_le_bytes<uint32_t>(st->lfsr + 12ul) };
+
+  const uint32_t s0 = get_32bits(lfsr, 0);
+  const uint32_t s7 = get_32bits(lfsr, 7);
+  const uint32_t s38 = get_32bits(lfsr, 38);
+  const uint32_t s70 = get_32bits(lfsr, 70);
+  const uint32_t s81 = get_32bits(lfsr, 81);
+  const uint32_t s96 = get_32bits(lfsr, 96);
 
   const uint32_t res = s0 ^ s7 ^ s38 ^ s70 ^ s81 ^ s96;
   return res;
@@ -348,47 +389,52 @@ f(const state_t* const st)
 inline static uint32_t
 fx32(const state_t* const st)
 {
-  const uint32_t s0 = get_32bits(st->lfsr, 0);
+  const uint32_t nfsr[]{ from_le_bytes<uint32_t>(st->nfsr + 0ul),
+                         from_le_bytes<uint32_t>(st->nfsr + 4ul),
+                         from_le_bytes<uint32_t>(st->nfsr + 8ul),
+                         from_le_bytes<uint32_t>(st->nfsr + 12ul) };
 
-  const uint32_t b0 = get_32bits(st->nfsr, 0);
-  const uint32_t b26 = get_32bits(st->nfsr, 26);
-  const uint32_t b56 = get_32bits(st->nfsr, 56);
-  const uint32_t b91 = get_32bits(st->nfsr, 91);
-  const uint32_t b96 = get_32bits(st->nfsr, 96);
+  const uint32_t s0 = from_le_bytes<uint32_t>(st->lfsr + 0ul);
 
-  const uint32_t b3 = get_32bits(st->nfsr, 3);
-  const uint32_t b67 = get_32bits(st->nfsr, 67);
+  const uint32_t b0 = get_32bits(nfsr, 0);
+  const uint32_t b26 = get_32bits(nfsr, 26);
+  const uint32_t b56 = get_32bits(nfsr, 56);
+  const uint32_t b91 = get_32bits(nfsr, 91);
+  const uint32_t b96 = get_32bits(nfsr, 96);
 
-  const uint32_t b11 = get_32bits(st->nfsr, 11);
-  const uint32_t b13 = get_32bits(st->nfsr, 13);
+  const uint32_t b3 = get_32bits(nfsr, 3);
+  const uint32_t b67 = get_32bits(nfsr, 67);
 
-  const uint32_t b17 = get_32bits(st->nfsr, 17);
-  const uint32_t b18 = get_32bits(st->nfsr, 18);
+  const uint32_t b11 = get_32bits(nfsr, 11);
+  const uint32_t b13 = get_32bits(nfsr, 13);
 
-  const uint32_t b27 = get_32bits(st->nfsr, 27);
-  const uint32_t b59 = get_32bits(st->nfsr, 59);
+  const uint32_t b17 = get_32bits(nfsr, 17);
+  const uint32_t b18 = get_32bits(nfsr, 18);
 
-  const uint32_t b40 = get_32bits(st->nfsr, 40);
-  const uint32_t b48 = get_32bits(st->nfsr, 48);
+  const uint32_t b27 = get_32bits(nfsr, 27);
+  const uint32_t b59 = get_32bits(nfsr, 59);
 
-  const uint32_t b61 = get_32bits(st->nfsr, 61);
-  const uint32_t b65 = get_32bits(st->nfsr, 65);
+  const uint32_t b40 = get_32bits(nfsr, 40);
+  const uint32_t b48 = get_32bits(nfsr, 48);
 
-  const uint32_t b68 = get_32bits(st->nfsr, 68);
-  const uint32_t b84 = get_32bits(st->nfsr, 84);
+  const uint32_t b61 = get_32bits(nfsr, 61);
+  const uint32_t b65 = get_32bits(nfsr, 65);
 
-  const uint32_t b22 = get_32bits(st->nfsr, 22);
-  const uint32_t b24 = get_32bits(st->nfsr, 24);
-  const uint32_t b25 = get_32bits(st->nfsr, 25);
+  const uint32_t b68 = get_32bits(nfsr, 68);
+  const uint32_t b84 = get_32bits(nfsr, 84);
 
-  const uint32_t b70 = get_32bits(st->nfsr, 70);
-  const uint32_t b78 = get_32bits(st->nfsr, 78);
-  const uint32_t b82 = get_32bits(st->nfsr, 82);
+  const uint32_t b22 = get_32bits(nfsr, 22);
+  const uint32_t b24 = get_32bits(nfsr, 24);
+  const uint32_t b25 = get_32bits(nfsr, 25);
 
-  const uint32_t b88 = get_32bits(st->nfsr, 88);
-  const uint32_t b92 = get_32bits(st->nfsr, 92);
-  const uint32_t b93 = get_32bits(st->nfsr, 93);
-  const uint32_t b95 = get_32bits(st->nfsr, 95);
+  const uint32_t b70 = get_32bits(nfsr, 70);
+  const uint32_t b78 = get_32bits(nfsr, 78);
+  const uint32_t b82 = get_32bits(nfsr, 82);
+
+  const uint32_t b88 = get_32bits(nfsr, 88);
+  const uint32_t b92 = get_32bits(nfsr, 92);
+  const uint32_t b93 = get_32bits(nfsr, 93);
+  const uint32_t b95 = get_32bits(nfsr, 95);
 
   const uint32_t t0 = b0 ^ b26 ^ b56 ^ b91 ^ b96;
   const uint32_t t1 = b3 & b67;
@@ -500,59 +546,6 @@ inline static void
 update_nfsrx32(state_t* const st, const uint32_t b96)
 {
   updatex32(st->nfsr, b96);
-}
-
-// Compile-time check to ensure that only uint32_t or uint64_t can be converted
-// to and/ or from byte array of length 4 and 8, respectively.
-template<typename T>
-inline static constexpr bool
-check_type_bit_width()
-{
-  constexpr int blen = std::numeric_limits<T>::digits;
-  return (blen == 32) || (blen == 64);
-}
-
-// Given a byte array of length 4/ 8, this routine interprets those bytes in
-// little endian byte order, computing a 32/ 64 -bit unsigned integer
-template<typename T>
-inline static T
-from_le_bytes(const uint8_t* const bytes) requires(check_type_bit_width<T>())
-{
-  constexpr size_t blen = static_cast<size_t>(std::numeric_limits<T>::digits);
-
-  if constexpr (blen == 32ul) {
-    return (static_cast<uint32_t>(bytes[3]) << 24) |
-           (static_cast<uint32_t>(bytes[2]) << 16) |
-           (static_cast<uint32_t>(bytes[1]) << 8) |
-           (static_cast<uint32_t>(bytes[0]) << 0);
-  } else if constexpr (blen == 64ul) {
-    return (static_cast<uint64_t>(bytes[7]) << 56) |
-           (static_cast<uint64_t>(bytes[6]) << 48) |
-           (static_cast<uint64_t>(bytes[5]) << 40) |
-           (static_cast<uint64_t>(bytes[4]) << 32) |
-           (static_cast<uint64_t>(bytes[3]) << 24) |
-           (static_cast<uint64_t>(bytes[2]) << 16) |
-           (static_cast<uint64_t>(bytes[1]) << 8) |
-           (static_cast<uint64_t>(bytes[0]) << 0);
-  }
-}
-
-// Given a 32/ 64 -bit unsigned integer & a byte array of length 4/ 8, this
-// routine interprets u32/ u64 in little endian byte order and places each of 4/
-// 8 bytes in designated byte indices.
-template<typename T>
-inline static void
-to_le_bytes(const T v, uint8_t* const bytes) requires(check_type_bit_width<T>())
-{
-  constexpr size_t blen = static_cast<size_t>(std::numeric_limits<T>::digits);
-  static_assert((blen == 32) || (blen == 64), "Bit length of `T` ∈ {32, 64}");
-
-  constexpr size_t bcnt = sizeof(T);
-
-  for (size_t i = 0; i < bcnt; i++) {
-    const size_t boff = i << 3;
-    bytes[i] = static_cast<uint8_t>(v >> boff);
-  }
 }
 
 // Compile-time check that either 8 or 32 -bits are attempted to be
