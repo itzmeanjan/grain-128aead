@@ -611,7 +611,7 @@ authenticate(state_t* const st, // Grain-128 AEAD cipher state
     sreg = from_le_bytes<uint64_t>(st->sreg);
   }
 
-  constexpr int blen = std::numeric_limits<T>::digits;
+  constexpr size_t blen = static_cast<size_t>(std::numeric_limits<T>::digits);
 
   for (size_t i = 0; i < blen; i++) {
     const bool m = static_cast<bool>((msg >> i) & 0b1);
